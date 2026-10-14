@@ -32,3 +32,12 @@ initial backend commit - steps to set up the backend for your machine:
 8. run the backend (on windows powershell):
     - ./mvnw.cmd spring-boot:run
 9. if it says "Started LibraryBackendApplication" then everything is working
+
+## Frontend Setup
+### Prerequisites
+- Node.js (https://nodejs.org/en/download)
+
+### Setup
+1. `cd frontend`
+2. `npm install`
+3. `npm run dev`
