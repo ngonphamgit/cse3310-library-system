@@ -1,7 +1,9 @@
 package com.cse3310.library_backend;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -26,10 +28,12 @@ public class DataLoader implements CommandLineRunner
     {
         if (bookRepo.count() > 0) return;
 
+        Set<String> bookNames = new HashSet<>();
+
         Faker faker = new Faker();
         List<Book> books = new ArrayList<>();
 
-        for (int i = 0; i < 200; i++)
+        for (int i = 0; i < 5000; i++)
         {
             Book book = new Book(
                 faker.code().isbn13(),
@@ -40,7 +44,12 @@ public class DataLoader implements CommandLineRunner
                 faker.number().numberBetween(0, 10)
             );
 
-            books.add(book);
+            if (!bookNames.contains(book.getTitle()))
+            {
+                books.add(book);
+            }
+
+            bookNames.add(book.getTitle());
         }
 
         bookRepo.saveAll(books);
