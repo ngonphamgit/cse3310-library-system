@@ -23,7 +23,7 @@ public class Book {
     @Column(nullable = false)
     private String author;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false)
@@ -31,6 +31,8 @@ public class Book {
 
     @Column(nullable = false)
     private int quantity;
+
+    protected Book() {}
 
     public Book(String isbn, String title, String author, String description, String category, int quantity)
     {
@@ -41,4 +43,12 @@ public class Book {
         this.category = category;
         this.quantity = quantity;
     }
+
+    public Long getId() {return this.bookId;}
+    public String getIsbn() {return this.isbn;}
+    public String getTitle() {return this.title;}
+    public String getAuthor() {return this.author;}
+    public String getDescription() {return this.description;}
+    public String getCategory() {return this.category;}
+    public int getQuantity() {return this.quantity;}
 }
