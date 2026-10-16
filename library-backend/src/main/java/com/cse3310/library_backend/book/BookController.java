@@ -30,4 +30,10 @@ public class BookController
     {
         return bookService.getBooksByTitle(query, pageable);
     }
+
+    @GetMapping("/author")
+    public Page<BookResponse> getBooksByAuthor(@RequestParam String query, Pageable pageable)
+    {
+        return bookService.getBooksByAuthor(query, pageable);
+    }
 }
