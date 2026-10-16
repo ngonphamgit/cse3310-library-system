@@ -36,4 +36,10 @@ public class BookController
     {
         return bookService.getBooksByAuthor(query, pageable);
     }
+
+    @GetMapping("/category")
+    public Page<BookResponse> getBooksByCategory(@RequestParam String query, Pageable pageable)
+    {
+        return bookService.getBooksByCategory(query, pageable);
+    }
 }

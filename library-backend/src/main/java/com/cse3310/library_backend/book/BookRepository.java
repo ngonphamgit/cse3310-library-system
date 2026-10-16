@@ -36,4 +36,17 @@ public interface BookRepository extends JpaRepository<Book, Long>
             nativeQuery = true
     )
     Page<Book> findAllByAuthor(String query, Pageable pageable);
+
+    @Query(value =
+            "SELECT * " +
+            "FROM books " +
+            "WHERE to_tsvector('simple', category) @@ plainto_tsquery('simple', :query) " +
+            "ORDER BY ts_rank(to_tsvector('simple', category), plainto_tsquery('simple', :query)) DESC",
+            countQuery =
+            "SELECT count(*) " +
+            "FROM books " +
+            "WHERE to_tsvector('simple', category) @@ plainto_tsquery('simple', :query)",
+            nativeQuery = true
+    )
+    Page<Book> findAllByCategory(String query, Pageable pageable);
 }
