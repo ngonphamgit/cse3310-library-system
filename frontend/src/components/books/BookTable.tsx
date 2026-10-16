@@ -1,14 +1,5 @@
 import { Table } from "@heroui/react";
-
-interface Book {
-    bookId: number,
-    isbn: string,
-    title: string,
-    author: string,
-    description: string,
-    category: string,
-    quantity: number
-}
+import type { Book } from "@/types/book";
 
 interface BookTableProps {
     books: Book[];
