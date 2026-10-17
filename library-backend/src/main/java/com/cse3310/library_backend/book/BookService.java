@@ -58,4 +58,10 @@ public class BookService
             book.getQuantity()
         );
     }
+
+    public Page<BookResponse> getAllBooks(Pageable pageable)
+{
+    Page<Book> books = bookRepo.findAll(pageable);
+    return books.map(book -> toBookResponse(book));
+}
 }
