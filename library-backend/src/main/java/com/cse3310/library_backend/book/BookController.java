@@ -25,21 +25,29 @@ public class BookController
         return bookService.getBookById(id);
     }
 
-    @GetMapping("/search")
+    @GetMapping("/search/title")
     public Page<BookResponse> getBooksByTitle(@RequestParam String query, Pageable pageable)
     {
         return bookService.getBooksByTitle(query, pageable);
     }
 
-    @GetMapping("/author")
+    @GetMapping("/search/author")
     public Page<BookResponse> getBooksByAuthor(@RequestParam String query, Pageable pageable)
     {
         return bookService.getBooksByAuthor(query, pageable);
     }
 
-    @GetMapping("/category")
+    @GetMapping("/search/category")
     public Page<BookResponse> getBooksByCategory(@RequestParam String query, Pageable pageable)
     {
         return bookService.getBooksByCategory(query, pageable);
+    }
+
+    //return a page instead of a single response so the logic
+    //stays consistent with the rest of the endpoints
+    @GetMapping("/search/isbn")
+    public Page<BookResponse> getBookByIsbn(@RequestParam String query, Pageable pageable)
+    {
+        return bookService.getBookByIsbn(query, pageable);
     }
 }

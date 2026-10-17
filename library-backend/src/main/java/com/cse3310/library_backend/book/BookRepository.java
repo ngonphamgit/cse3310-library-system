@@ -49,4 +49,6 @@ public interface BookRepository extends JpaRepository<Book, Long>
             nativeQuery = true
     )
     Page<Book> findAllByCategory(String query, Pageable pageable);
+
+    Page<Book> findAllByIsbn(String query, Pageable pageable);
 }
