@@ -40,4 +40,5 @@ initial backend commit - steps to set up the backend for your machine:
 ### Setup
 1. `cd frontend`
 2. `npm install`
-3. `npm run dev`
+3. create a `.env` file in the `frontend` folder using `.env.example` as the template.
+4. `npm run dev`
