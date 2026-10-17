@@ -28,6 +28,24 @@ public class BookService
         return books.map(book -> toBookResponse(book));
     }
 
+    public Page<BookResponse> getBooksByAuthor(String query, Pageable pageable)
+    {
+        Page<Book> books = bookRepo.findAllByAuthor(query, pageable);
+        return books.map(book -> toBookResponse(book));
+    }
+
+    public Page<BookResponse> getBooksByCategory(String query, Pageable pageable)
+    {
+        Page<Book> books = bookRepo.findAllByCategory(query, pageable);
+        return books.map(book -> toBookResponse(book));
+    }
+
+    public Page<BookResponse> getBookByIsbn(String query, Pageable pageable)
+    {
+        Page<Book> books = bookRepo.findAllByIsbn(query, pageable);
+        return books.map(book -> toBookResponse(book));
+    }
+
     private BookResponse toBookResponse(Book book)
     {
         return new BookResponse(
