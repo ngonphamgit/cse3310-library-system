@@ -1,10 +1,12 @@
 package com.cse3310.library_backend.security;
 
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.stereotype.Service;
 
 import com.cse3310.library_backend.user.User;
 import com.cse3310.library_backend.user.UserRepository;
 
+@Service 
 public class CustomUserDetailsService implements UserDetailsService{
     private final UserRepository userRepo;
 
