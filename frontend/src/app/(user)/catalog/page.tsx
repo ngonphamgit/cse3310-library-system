@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { BookTable } from "@/components/books/BookTable";
+import { BookSearch } from "@/components/books/BookSearch";
 import type { Book } from "@/types/book";
-
 
 
 export default function catalog() {
@@ -16,6 +16,9 @@ export default function catalog() {
   }, []);
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-12">
+    	<div className="flex p-4">
+        <BookSearch />
+      </div>
       <BookTable books={books} />
     </div>
   )
