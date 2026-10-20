@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 public interface BookRepository extends JpaRepository<Book, Long>
 {
     Optional<Book> findById(Long id);
-
     @Query(value =
             "SELECT * " +
             "FROM books " +
@@ -23,7 +22,6 @@ public interface BookRepository extends JpaRepository<Book, Long>
             nativeQuery = true
     )
     Page<Book> findAllByTitle(String query, Pageable pageable);
-
     @Query(value =
             "SELECT * " +
             "FROM books " +
@@ -36,7 +34,6 @@ public interface BookRepository extends JpaRepository<Book, Long>
             nativeQuery = true
     )
     Page<Book> findAllByAuthor(String query, Pageable pageable);
-
     @Query(value =
             "SELECT * " +
             "FROM books " +
@@ -49,6 +46,7 @@ public interface BookRepository extends JpaRepository<Book, Long>
             nativeQuery = true
     )
     Page<Book> findAllByCategory(String query, Pageable pageable);
-
     Page<Book> findAllByIsbn(String query, Pageable pageable);
+
+    boolean existsByIsbn(String isbn);
 }
