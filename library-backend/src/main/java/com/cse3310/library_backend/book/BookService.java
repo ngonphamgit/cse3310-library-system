@@ -46,6 +46,27 @@ public class BookService
         return books.map(book -> toBookResponse(book));
     }
 
+    public BookResponse addBook(AddBookRequest request)
+    {
+        if (bookRepo.existsByIsbn(request.isbn()))
+        {
+            throw new RuntimeException("Book ISBN already exists");
+        }
+
+        Book book = new Book (
+            request.isbn(),
+            request.title(),
+            request.author(),
+            request.description(),
+            request.category(),
+            request.quantity()
+        );
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
     private BookResponse toBookResponse(Book book)
     {
         return new BookResponse(
