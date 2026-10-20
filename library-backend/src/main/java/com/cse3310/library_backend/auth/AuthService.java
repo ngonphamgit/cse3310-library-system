@@ -50,6 +50,14 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request)
     {
-        return null;
+        User user = userRepo.findByUsername(request.username()).orElseThrow(() -> new RuntimeException("Invalid credentials"));
+
+        if (!passwordEncoder.matches(request.password(), user.getPassword()))
+        {
+            throw new RuntimeException("Invalid credentials");
+        }
+
+        String token = jwtService.generateToken(request.username());
+        return new AuthResponse(token);
     }
 }
