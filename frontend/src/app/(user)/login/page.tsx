@@ -35,7 +35,16 @@ export default function loginPage()
       const data = await response.json(); //parse backends response
 
       localStorage.setItem("token", data.token); //store login token
-      router.push("/catalog"); //redirects user to the catalog upon success
+
+      if (data.role === "ROLE_ADMIN") 
+        { //if user is a librarian, go to librarian page instead of catalog
+    router.push("/librarian");
+        } 
+        else 
+        {//otherwise go to catalog
+    router.push("/catalog");
+        }
+  
     } 
     catch 
     { //backend wasnt running
@@ -96,6 +105,3 @@ export default function loginPage()
 }
 
 
- //<div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-   //   <h1>Library System</h1>
-  //  </div>
