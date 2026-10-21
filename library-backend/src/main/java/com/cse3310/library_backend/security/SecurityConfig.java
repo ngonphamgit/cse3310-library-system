@@ -11,6 +11,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List; //needed for login to work
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
@@ -34,4 +39,30 @@ public class SecurityConfig {
     {
         return new BCryptPasswordEncoder();
     }
+
+
+    @Bean
+public CorsConfigurationSource corsConfigurationSource() 
+{ //allows localhost:3000 to access backend for logins
+    CorsConfiguration configuration = new CorsConfiguration();
+
+    configuration.setAllowedOrigins(
+        List.of("http://localhost:3000")
+    );
+
+    configuration.setAllowedMethods(
+        List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+    );
+
+    configuration.setAllowedHeaders(
+        List.of("Authorization", "Content-Type")
+    );
+
+    UrlBasedCorsConfigurationSource source =
+        new UrlBasedCorsConfigurationSource();
+
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
+}
 }
