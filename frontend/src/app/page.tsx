@@ -1,7 +1,10 @@
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <h1>Library System</h1>
-    </div>
-  );
+import //this is just the home page, it automaticlaly redirects to the login screen
+{ 
+  redirect 
+} 
+from "next/navigation";
+
+export default function Home() 
+{
+  redirect("/login");
 }
