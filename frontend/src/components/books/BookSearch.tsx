@@ -23,7 +23,10 @@ export function BookSearch() {
 		<SearchField 
 			name="search"
 			defaultValue={searchParams.get("query") ?? ""}
-			onSubmit={search}
+			onSubmit={(query) => {
+				search(query);
+				(document.activeElement as HTMLElement | null)?.blur();
+			}}
 			onClear={() => search("")}
 		>
 			<Label>Search</Label>
