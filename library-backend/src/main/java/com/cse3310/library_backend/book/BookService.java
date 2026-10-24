@@ -79,6 +79,22 @@ public class BookService
         return toBookResponse(book);
     }
 
+    public BookResponse updateBook(UpdateBookRequest request)
+    {
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        book.setTitle(request.title());
+        book.setAuthor(request.author());
+        book.setDescription(request.description());
+        book.setCategory(request.category());
+        book.setQuantity(request.quantity());
+        book.setIsActive(request.isActive());
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
     private BookResponse toBookResponse(Book book)
     {
         return new BookResponse(
