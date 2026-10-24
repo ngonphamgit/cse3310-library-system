@@ -32,9 +32,12 @@ public class Book {
     @Column(nullable = false)
     private int quantity;
 
+    @Column
+    private boolean isActive;
+
     protected Book() {}
 
-    public Book(String isbn, String title, String author, String description, String category, int quantity)
+    public Book(String isbn, String title, String author, String description, String category, int quantity, boolean isActive)
     {
         this.isbn = isbn;
         this.title = title;
@@ -42,6 +45,7 @@ public class Book {
         this.description = description;
         this.category = category;
         this.quantity = quantity;
+        this.isActive = true;
     }
 
     public Long getId() {return this.bookId;}
@@ -51,4 +55,12 @@ public class Book {
     public String getDescription() {return this.description;}
     public String getCategory() {return this.category;}
     public int getQuantity() {return this.quantity;}
+    public boolean getIsActive() {return this.isActive;}
+
+    public void setTitle(String title) {this.title = title;}
+    public void setAuthor(String author) {this.author = author;}
+    public void setDescription(String description) {this.description = description;}
+    public void setCategory(String category) {this.category = category;}
+    public void setQuantity(int quantity) {this.quantity = quantity;}
+    public void setIsActive(boolean isActive) {this.isActive = isActive;}
 }

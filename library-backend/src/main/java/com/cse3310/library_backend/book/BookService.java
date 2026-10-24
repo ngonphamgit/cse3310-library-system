@@ -46,6 +46,55 @@ public class BookService
         return books.map(book -> toBookResponse(book));
     }
 
+    public BookResponse addBook(AddBookRequest request)
+    {
+        if (bookRepo.existsByIsbn(request.isbn()))
+        {
+            throw new RuntimeException("Book ISBN already exists");
+        }
+
+        Book book = new Book (
+            request.isbn(),
+            request.title(),
+            request.author(),
+            request.description(),
+            request.category(),
+            request.quantity(),
+            true
+        );
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
+    public BookResponse removeBook(RemoveBookRequest request)
+    {
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        book.setIsActive(false);
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
+    public BookResponse updateBook(UpdateBookRequest request)
+    {
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        book.setTitle(request.title());
+        book.setAuthor(request.author());
+        book.setDescription(request.description());
+        book.setCategory(request.category());
+        book.setQuantity(request.quantity());
+        book.setIsActive(request.isActive());
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
     private BookResponse toBookResponse(Book book)
     {
         return new BookResponse(
@@ -55,7 +104,8 @@ public class BookService
             book.getAuthor(),
             book.getDescription(),
             book.getCategory(),
-            book.getQuantity()
+            book.getQuantity(),
+            book.getIsActive()
         );
     }
 

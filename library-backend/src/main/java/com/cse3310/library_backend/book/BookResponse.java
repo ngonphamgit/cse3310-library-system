@@ -7,6 +7,7 @@ public record BookResponse(
     String author,
     String description,
     String category,
-    int quantity
+    int quantity,
+    boolean isActive
 ) 
 {}
