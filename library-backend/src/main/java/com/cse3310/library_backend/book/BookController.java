@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -67,5 +68,12 @@ public class BookController
     public BookResponse addBook(@RequestBody AddBookRequest request)
     {
         return bookService.addBook(request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/admin/removeBook")
+    public BookResponse removeBook(@RequestBody RemoveBookRequest request)
+    {
+        return bookService.removeBook(request);
     }
 }

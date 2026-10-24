@@ -59,8 +59,20 @@ public class BookService
             request.author(),
             request.description(),
             request.category(),
-            request.quantity()
+            request.quantity(),
+            true
         );
+
+        bookRepo.save(book);
+
+        return toBookResponse(book);
+    }
+
+    public BookResponse removeBook(RemoveBookRequest request)
+    {
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        book.setIsActive(false);
 
         bookRepo.save(book);
 
@@ -76,7 +88,8 @@ public class BookService
             book.getAuthor(),
             book.getDescription(),
             book.getCategory(),
-            book.getQuantity()
+            book.getQuantity(),
+            book.getIsActive()
         );
     }
 
