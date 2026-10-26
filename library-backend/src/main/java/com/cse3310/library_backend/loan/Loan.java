@@ -1,7 +1,6 @@
 package com.cse3310.library_backend.loan;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 import com.cse3310.library_backend.book.Book;
 import com.cse3310.library_backend.user.User;
@@ -34,7 +33,7 @@ public class Loan
     @Column(nullable = false)
     private LocalDate borrowDate;
 
-    @Column(nullable = false)
+    @Column
     private LocalDate returnDate;
 
     @Column(nullable = false)
