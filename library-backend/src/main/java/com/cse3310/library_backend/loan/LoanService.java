@@ -1,6 +1,7 @@
 package com.cse3310.library_backend.loan;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -8,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.cse3310.library_backend.book.Book;
 import com.cse3310.library_backend.book.BookRepository;
-import com.cse3310.library_backend.security.CustomUserDetails;
 import com.cse3310.library_backend.user.User;
 import com.cse3310.library_backend.user.UserRepository;
 
@@ -32,8 +32,8 @@ public class LoanService
         User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
         Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
 
-        //one user can only borrow one unique book at a time
-        if (loanRepo.existsByUserIdAndBookId(user.getId(), book.getId()))
+        //cannot have multiple loans of the same book at a time
+        if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
         {
             throw new RuntimeException("Book is already loaned for this user");
         }
@@ -51,9 +51,6 @@ public class LoanService
         Loan loan = new Loan(user, book, now, null, dueDate);
         loanRepo.save(loan);
 
-        user.addLoan(loan);
-        userRepo.save(user);
-
         book.setQuantity(book.getQuantity() - 1);
         bookRepo.save(book);
 
@@ -63,7 +60,25 @@ public class LoanService
     @Transactional
     public LoanResponse returnBook(LoanReturnRequest request, Authentication auth)
     {
-        return null;
+        User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+
+        /*
+        if this fails either:
+            1. the user never borrowed this book in the first place
+            2. the user borrowed this book but returned it already 
+                (can't return a book thats already been returned)
+        */
+        Loan loan = loanRepo.findByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId())
+                    .orElseThrow(() -> new RuntimeException("Loan not found or user already returned this book"));
+
+        loan.setReturnDate(LocalDate.now());
+        loanRepo.save(loan);
+
+        book.setQuantity(book.getQuantity() + 1);
+        bookRepo.save(book);
+
+        return toLoanResponse(loan);
     }
 
     private LoanResponse toLoanResponse(Loan loan)
