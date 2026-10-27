@@ -21,6 +21,8 @@ export function BookSearch() {
 
 	function updateParams(updates: Record<string, string>) {
 		const params = new URLSearchParams(searchParams);
+		
+		params.delete("page");
 		for (const [key, value] of Object.entries(updates)) {
 			if (value) {
 				params.set(key, value);
