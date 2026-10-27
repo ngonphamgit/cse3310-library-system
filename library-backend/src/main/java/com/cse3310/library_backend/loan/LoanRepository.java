@@ -4,5 +4,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LoanRepository extends JpaRepository<Loan, Long>
 {
-    
+    boolean existsByUserIdAndBookId(Long userId, Long bookId);
 }

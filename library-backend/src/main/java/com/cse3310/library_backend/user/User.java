@@ -47,8 +47,19 @@ public class User {
         this.role = role;
     }
 
+    public Long getId() {return this.userId;}
     public String getUsername() {return this.username;}
     public String getEmail() {return this.email;}
     public String getPassword() {return this.password;}
     public Role getRole() {return this.role;}
+
+    public void addLoan(Loan loan)
+    {
+        this.loans.add(loan);
+    }
+
+    public void removeLoan(Loan loan)
+    {
+        this.loans.remove(this.loans.indexOf(loan));
+    }
 }

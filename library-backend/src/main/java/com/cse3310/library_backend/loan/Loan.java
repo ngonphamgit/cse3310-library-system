@@ -49,4 +49,10 @@ public class Loan
         this.returnDate = returnDate;
         this.dueDate = dueDate;
     }
+
+    public User getUser() {return this.user;}
+    public Book getBook() {return this.book;}
+    public LocalDate getBorrowDate() {return this.borrowDate;}
+    public LocalDate getReturnDate() {return this.returnDate;}
+    public LocalDate getDueDate() {return this.dueDate;}
 }
