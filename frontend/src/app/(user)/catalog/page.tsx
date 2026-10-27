@@ -1,22 +1,21 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { BookTable } from "@/components/books/BookTable";
-import type { Book } from "@/types/book";
+import { BookSearch } from "@/components/books/BookSearch";
+import { getBooks, searchBooks, type SearchBy } from "@/lib/api/books";
 
+interface CatalogProps {
+	searchParams: Promise<{ query?: string; by?: SearchBy }>;
+}
 
-
-export default function catalog() {
-   const [books, setBooks] = useState<Book[]>([]);
-    useEffect(() => {
-    fetch("http://localhost:8080/book?page=0&size=50000")
-      .then((res) => res.json())
-      .then((data) => setBooks(data.content))
-      .catch((err) => console.error("Failed to load books:", err));
-  }, []);
+export default async function Catalog({ searchParams }: CatalogProps) {
+	const { query, by = "title" } = await searchParams;
+	const data = query ? await searchBooks(by, query): await getBooks();
+   
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-12">
-      <BookTable books={books} />
+    	<div className="flex p-4">
+        <BookSearch />
+      </div>
+      <BookTable books={data.content} />
     </div>
   )
 }
