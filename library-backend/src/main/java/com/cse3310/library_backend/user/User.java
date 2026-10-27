@@ -1,5 +1,9 @@
 package com.cse3310.library_backend.user;
 
+import java.util.List;
+
+import com.cse3310.library_backend.loan.Loan;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -7,6 +11,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -39,6 +44,7 @@ public class User {
         this.role = role;
     }
 
+    public Long getId() {return this.userId;}
     public String getUsername() {return this.username;}
     public String getEmail() {return this.email;}
     public String getPassword() {return this.password;}
