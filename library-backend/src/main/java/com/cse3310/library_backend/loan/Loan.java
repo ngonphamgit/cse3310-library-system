@@ -55,4 +55,6 @@ public class Loan
     public LocalDate getBorrowDate() {return this.borrowDate;}
     public LocalDate getReturnDate() {return this.returnDate;}
     public LocalDate getDueDate() {return this.dueDate;}
+
+    public void setReturnDate(LocalDate returnDate) {this.returnDate = returnDate;}
 }

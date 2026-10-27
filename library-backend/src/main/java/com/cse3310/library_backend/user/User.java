@@ -34,9 +34,6 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
-    @OneToMany(mappedBy = "user")
-    private List<Loan> loans;
-
     protected User() {}
 
     public User(String username, String email, String password, Role role)
@@ -52,14 +49,4 @@ public class User {
     public String getEmail() {return this.email;}
     public String getPassword() {return this.password;}
     public Role getRole() {return this.role;}
-
-    public void addLoan(Loan loan)
-    {
-        this.loans.add(loan);
-    }
-
-    public void removeLoan(Loan loan)
-    {
-        this.loans.remove(this.loans.indexOf(loan));
-    }
 }
