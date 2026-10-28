@@ -208,7 +208,7 @@ useEffect(() => {
 
               <button
                 type="button"
-                disabled={selectedBook.quantity === 0}
+                disabled={selectedBook.quantity > 0}
                 onClick={() =>
                   setActionMessage("reservation not yet implemented")
                 }
