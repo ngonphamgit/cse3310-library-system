@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController 
 @RequestMapping("/loan")
@@ -30,5 +32,12 @@ public class LoanController {
     public LoanResponse returnBook(@RequestBody LoanReturnRequest request, Authentication auth)
     {
         return loanService.returnBook(request, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @GetMapping("/my-loans")
+    public List<LoanResponse> getMyLoans(Authentication auth)
+    {
+       return loanService.getMyLoans(auth);
     }
 }

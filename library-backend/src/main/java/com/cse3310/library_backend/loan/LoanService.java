@@ -97,4 +97,19 @@ public class LoanService
             loan.getDueDate()
         );
     }
+
+
+
+    @Transactional(readOnly = true)
+public List<LoanResponse> getMyLoans(Authentication auth)
+{
+    User user = userRepo.findByUsername(auth.getName())
+        .orElseThrow(() -> new RuntimeException("User not found"));
+
+    List<Loan> loans = loanRepo.findAllByUserIdAndReturnDateIsNull(user.getId());
+
+    return loans.stream()
+        .map(this::toLoanResponse)
+        .toList();
+}
 }
