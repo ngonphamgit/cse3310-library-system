@@ -43,7 +43,7 @@ export function BookTable({ books = [] }: BookTableProps) {
                 <Table.Cell>
                    <button 
                     type="button"
-                    className="cursor-pointer text-left hover:underline"
+                    className="cursor-pointer text-left text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
                     onClick={() => openBook(book)}>
                        {book.title}
                     </button>
