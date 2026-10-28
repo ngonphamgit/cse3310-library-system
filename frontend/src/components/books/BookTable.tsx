@@ -90,8 +90,7 @@ export function BookTable({ books = [] }: BookTableProps) {
                 type="button"
                 onClick={closeBook}
                 aria-label="Close book details"
-                className="rounded-lg px-3 py-1 text-xl hover:bg-zinc-200 dark:hover:bg-zinc-700"
-              >
+                className="rounded-lg px-3 py-1 text-xl hover:bg-zinc-200 dark:hover:bg-zinc-700">
                 &times;
               </button>
             </div>
@@ -126,20 +125,22 @@ export function BookTable({ books = [] }: BookTableProps) {
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
+                  disabled={selectedBook.quantity === 0}
                 onClick={() =>
                   setActionMessage("checkout not yet implemented")
                 }
-                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800"
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-20"
               >
                 Checkout
               </button>
 
               <button
                 type="button"
+                disabled={selectedBook.quantity > 0}
                 onClick={() =>
                   setActionMessage("reservation not yet implemented")
                 }
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20"
               >
                 Reserve
               </button>
