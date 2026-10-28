@@ -7,6 +7,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.cse3310.library_backend.book.Book;
 import com.cse3310.library_backend.book.BookRepository;
 import com.cse3310.library_backend.user.User;
@@ -35,7 +39,9 @@ public class LoanService
         //cannot have multiple loans of the same book at a time
         if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
         {
-            throw new RuntimeException("Book is already loaned for this user");
+             throw new ResponseStatusException(HttpStatus.CONFLICT,
+        "You have already checked out this book."
+    );
         }
 
         //later add functionality to allow user to
