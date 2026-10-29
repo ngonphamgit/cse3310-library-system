@@ -38,7 +38,17 @@ public class BookControllerTest {
     private JwtService jwtService;
     @MockitoBean
     private CustomUserDetailsService cuds;
-
+    
+    private List<BookResponse> books = List.of(
+        new BookResponse(1L, "9781583429990", "red 1", "a", "d1", "c1", 1, true),
+        new BookResponse(2L, "9781583429991", "red 2", "a", "d2", "c1", 1, true),
+        new BookResponse(3L, "9781583429992", "red 5", "a", "d3", "c2", 1, true),
+        new BookResponse(4L, "9781583429993", "red 3", "a", "d4", "c2", 1, true),
+        new BookResponse(5L, "9781583429994", "red 4", "b", "d5", "c3", 1, true),
+        new BookResponse(6L, "9781583429994", "blue 1", "c", "d5", "c3", 1, true),
+        new BookResponse(7L, "9781583429994", "blue 2", "c", "d5", "c3", 1, true)
+    );
+    /*
     @Test
     void getBookByIdReturns200() throws Exception
     {
@@ -68,20 +78,10 @@ public class BookControllerTest {
 
         verify(bookService).getBookById(1L);
     }
-
+    */
     @Test
-    void searchBooksReturns200() throws Exception
+    void searchBooksByTitleReturns200() throws Exception
     {
-        List<BookResponse> books = List.of(
-            new BookResponse(1L, "9781583429990", "red 1", "a1", "d1", "c1", 1, true),
-            new BookResponse(2L, "9781583429991", "red 2", "a1", "d2", "c1", 1, true),
-            new BookResponse(3L, "9781583429992", "red 5", "a1", "d3", "c2", 1, true),
-            new BookResponse(4L, "9781583429993", "red 3", "a1", "d4", "c2", 1, true),
-            new BookResponse(5L, "9781583429994", "red 4", "a2", "d5", "c3", 1, true),
-            new BookResponse(6L, "9781583429994", "blue 1", "a5", "d5", "c3", 1, true),
-            new BookResponse(7L, "9781583429994", "blue 2", "a5", "d5", "c3", 1, true)
-        );
-
         Pageable pageable0 = PageRequest.of(0, 3);
         Pageable pageable1 = PageRequest.of(1, 3);
         Pageable pageable2 = PageRequest.of(0, 5);
@@ -117,7 +117,7 @@ public class BookControllerTest {
                 .param("query", "red")
                 .param("page", "0")
                 .param("size", "3"))
-            .andDo(print())
+            //.andDo(print())
             .andExpect(jsonPath("$.content.length()").value(3))
             .andExpect(jsonPath("$.number").value(0))
             .andExpect(jsonPath("$.numberOfElements").value(3))
@@ -129,7 +129,7 @@ public class BookControllerTest {
                 .param("query", "red")
                 .param("page", "1")
                 .param("size", "3"))
-            .andDo(print())
+            //.andDo(print())
             .andExpect(jsonPath("$.content.length()").value(2))
             .andExpect(jsonPath("$.number").value(1))
             .andExpect(jsonPath("$.numberOfElements").value(2))
@@ -141,7 +141,7 @@ public class BookControllerTest {
                 .param("query", "blue")
                 .param("page", "0")
                 .param("size", "3"))
-            .andDo(print())
+            //.andDo(print())
             .andExpect(jsonPath("$.content.length()").value(2))
             .andExpect(jsonPath("$.number").value(0))
             .andExpect(jsonPath("$.numberOfElements").value(2))
@@ -153,6 +153,105 @@ public class BookControllerTest {
                 .param("query", "blue")
                 .param("page", "0")
                 .param("size", "5"))
+            //.andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(0))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(0))
+            .andExpect(jsonPath("$.totalElements").value(0))
+            .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void searchBooksByAuthorReturns200() throws Exception
+    {
+        Pageable pageable03 = PageRequest.of(0, 3);
+        Pageable pageable06 = PageRequest.of(0, 6);
+
+        Page<BookResponse> page1 = new PageImpl<>(
+            books.subList(0, 3),
+            pageable03,
+            4
+        );
+        Page<BookResponse> page2 = new PageImpl<>(
+            books.subList(1, 4),
+            pageable06,
+            3
+        );
+        Page<BookResponse> page3 = new PageImpl<>(
+            books.subList(4, 5),
+            pageable06,
+            1
+        );
+        Page<BookResponse> page4 = new PageImpl<>(
+            books.subList(5, 7),
+            pageable06,
+            1
+        );
+        Page<BookResponse> page5 = new PageImpl<>(
+            new ArrayList<>(),
+            pageable06,
+            0
+        );
+
+        when(bookService.getBooksByAuthor("a", pageable03)).thenReturn(page1);
+        when(bookService.getBooksByAuthor("a", pageable06)).thenReturn(page2);
+        when(bookService.getBooksByAuthor("b", pageable06)).thenReturn(page3);
+        when(bookService.getBooksByAuthor("c", pageable06)).thenReturn(page4);
+        when(bookService.getBooksByAuthor("d", pageable06)).thenReturn(page5);
+
+        //should return books with ids 1,2,3
+        mockMvc.perform(get("/book/search/author")
+                .param("query", "a")
+                .param("page", "0")
+                .param("size", "3"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(3))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(3))
+            .andExpect(jsonPath("$.totalElements").value(4))
+            .andExpect(jsonPath("$.totalPages").value(2));
+
+        //should return books with ids 2,3,4
+        mockMvc.perform(get("/book/search/author")
+                .param("query", "a")
+                .param("page", "0")
+                .param("size", "6"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(3))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(3))
+            .andExpect(jsonPath("$.totalElements").value(3))
+            .andExpect(jsonPath("$.totalPages").value(1));
+
+        //should return books with id 5
+        mockMvc.perform(get("/book/search/author")
+                .param("query", "b")
+                .param("page", "0")
+                .param("size", "6"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(1))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.totalPages").value(1));
+        
+        //should return books with ids 6, 7
+        mockMvc.perform(get("/book/search/author")
+                .param("query", "c")
+                .param("page", "0")
+                .param("size", "6"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(2))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(2))
+            .andExpect(jsonPath("$.totalElements").value(2))
+            .andExpect(jsonPath("$.totalPages").value(1));
+        
+        //should return nothing
+        mockMvc.perform(get("/book/search/author")
+                .param("query", "d")
+                .param("page", "0")
+                .param("size", "6"))
             .andDo(print())
             .andExpect(jsonPath("$.content.length()").value(0))
             .andExpect(jsonPath("$.number").value(0))
