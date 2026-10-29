@@ -45,8 +45,8 @@ public class BookControllerTest {
         new BookResponse(3L, "9781583429992", "red 5", "a", "d3", "c2", 1, true),
         new BookResponse(4L, "9781583429993", "red 3", "a", "d4", "c2", 1, true),
         new BookResponse(5L, "9781583429994", "red 4", "b", "d5", "c3", 1, true),
-        new BookResponse(6L, "9781583429994", "blue 1", "c", "d5", "c3", 1, true),
-        new BookResponse(7L, "9781583429994", "blue 2", "c", "d5", "c3", 1, true)
+        new BookResponse(6L, "9781583429995", "blue 1", "c", "d5", "c3", 1, true),
+        new BookResponse(7L, "9781583429996", "blue 2", "c", "d5", "c3", 1, true)
     );
     
     @Test
@@ -326,6 +326,65 @@ public class BookControllerTest {
         
         mockMvc.perform(get("/book/search/category")
                 .param("query", "c4")
+                .param("page", "0")
+                .param("size", "5"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(0))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(0))
+            .andExpect(jsonPath("$.totalElements").value(0))
+            .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void searchBooksByIsbnReturns200() throws Exception
+    {
+        Pageable pageable01 = PageRequest.of(0, 5);
+
+        Page<BookResponse> page1 = new PageImpl<>(
+            books.subList(0, 1),
+            pageable01,
+            1
+        );
+        Page<BookResponse> page2 = new PageImpl<>(
+            books.subList(1, 2),
+            pageable01,
+            1
+        );
+        Page<BookResponse> page3 = new PageImpl<>(
+            new ArrayList<>(),
+            pageable01,
+            0
+        );
+
+        when(bookService.getBookByIsbn("9781583429990", pageable01)).thenReturn(page1);
+        when(bookService.getBookByIsbn("9781583429991", pageable01)).thenReturn(page2);
+        when(bookService.getBookByIsbn("9781583429999", pageable01)).thenReturn(page3);
+
+        mockMvc.perform(get("/book/search/isbn")
+                .param("query", "9781583429990")
+                .param("page", "0")
+                .param("size", "5"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(1))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.totalPages").value(1));
+        
+        mockMvc.perform(get("/book/search/isbn")
+                .param("query", "9781583429991")
+                .param("page", "0")
+                .param("size", "5"))
+            .andDo(print())
+            .andExpect(jsonPath("$.content.length()").value(1))
+            .andExpect(jsonPath("$.number").value(0))
+            .andExpect(jsonPath("$.numberOfElements").value(1))
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.totalPages").value(1));
+
+        mockMvc.perform(get("/book/search/isbn")
+                .param("query", "9781583429999")
                 .param("page", "0")
                 .param("size", "5"))
             .andDo(print())
