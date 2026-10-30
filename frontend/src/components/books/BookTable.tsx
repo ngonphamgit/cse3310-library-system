@@ -4,14 +4,17 @@ import { useEffect, useState } from "react"; //allows book table to be interacte
 import { Table } from "@heroui/react";
 import type { Book } from "@/types/book";
 
-interface BookTableProps {
-    books: Book[];
+interface BookTableProps 
+{
+  books: Book[];
 }
 
-export function BookTable({ books = [] }: BookTableProps) {
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [actionMessage, setActionMessage] = useState("");
+export function BookTable({ books = [] }: BookTableProps) 
+{
+const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+const [actionMessage, setActionMessage] = useState("");
 const [displayBooks, setDisplayBooks] = useState<Book[]>(books);
+const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
 
 useEffect(() => {
   setDisplayBooks(books);
@@ -31,7 +34,7 @@ useEffect(() => {
 
 
 
-  async function checkoutBook() 
+  async function checkoutBook() //run when checkout button pressed
   {
   if (!selectedBook) //check if selected book is valid
     {
@@ -67,6 +70,10 @@ useEffect(() => {
     { //duplicate checkout error
     setActionMessage("You have already checked out this book.");
     } 
+    else if(response.status === 403)
+    {
+      setActionMessage("You need to log in to check out a book.");
+    }
     else
     { //otherwise other error
     setActionMessage(`Checkout failed (${response.status}). Please try again.`);
@@ -196,13 +203,14 @@ useEffect(() => {
               </p>
             )}
 
+
+
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                   disabled={selectedBook.quantity === 0}
-                onClick={checkoutBook}
-                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-20"
-              >
+                onClick={() => setShowCheckoutConfirmation(true)}
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-20">
                 Checkout
               </button>
 
@@ -212,14 +220,58 @@ useEffect(() => {
                 onClick={() =>
                   setActionMessage("reservation not yet implemented")
                 }
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20"
-              >
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20">
                 Reserve
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {showCheckoutConfirmation && selectedBook && (
+  <div
+    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+    onClick={() => setShowCheckoutConfirmation(false)}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+      onClick={(e) => e.stopPropagation()}>
+      <h2 className="text-xl font-bold">
+        Confirm Checkout
+      </h2>
+
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        Are you sure you want to check out "{selectedBook.title}"?
+         </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+         Due Date:{" "}
+          <span className="font-semibold text-zinc-900 dark:text-white">
+            {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+             </span>  
+      </p>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setShowCheckoutConfirmation(false);
+            checkoutBook();
+          }}
+          className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800">
+          Yes, Checkout
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowCheckoutConfirmation(false)}
+          className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </>
   );
 }
