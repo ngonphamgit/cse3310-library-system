@@ -49,6 +49,7 @@ public class Book {
     }
 
     public Long getId() {return this.bookId;}
+    public Long getBookId() {return this.bookId;}
     public String getIsbn() {return this.isbn;}
     public String getTitle() {return this.title;}
     public String getAuthor() {return this.author;}

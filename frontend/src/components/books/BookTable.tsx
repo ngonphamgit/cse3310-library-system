@@ -111,6 +111,7 @@ useEffect(() => {
       <Table.ScrollContainer>
         <Table.Content aria-label="books">
           <Table.Header>
+              {/*table layout*/}
             <Table.Column isRowHeader>Title</Table.Column>
             <Table.Column>Author</Table.Column>
             <Table.Column>ISBN</Table.Column>
@@ -142,6 +143,7 @@ useEffect(() => {
     </Table>
 
 
+  {/*book details popup (from clicking title)*/}
   {
  selectedBook && (
         <div
@@ -154,7 +156,7 @@ useEffect(() => {
             aria-labelledby="book-details-title"
             className="w-full max-w-lg space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
             onClick={(e) => e.stopPropagation()} >
-
+                {/*display book info (title, author, description)*/}
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2
@@ -166,7 +168,7 @@ useEffect(() => {
                   by {selectedBook.author}
                 </p>
               </div>
-
+      {/*close book popup*/}
               <button
                 type="button"
                 onClick={closeBook}
@@ -175,7 +177,7 @@ useEffect(() => {
                 &times;
               </button>
             </div>
-
+            {/*display more book info*/}
             <div className="space-y-3 border-y border-zinc-200 py-4 dark:border-zinc-700">
               <p>
                 <span className="font-semibold">ISBN:</span>{" "}
@@ -196,7 +198,7 @@ useEffect(() => {
                 </p>
               </div>
             </div>
-
+              {/*action message for state of checkout/reservation*/}
             {actionMessage && (
               <p role="status" className="text-sm text-blue-600 dark:text-blue-400">
                 {actionMessage}
@@ -204,7 +206,7 @@ useEffect(() => {
             )}
 
 
-
+                {/*checkout button (just brings up confirmation page)*/}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -214,6 +216,7 @@ useEffect(() => {
                 Checkout
               </button>
 
+              {/*button to reserve book (just brings up confirmation screen)*/}
               <button
                 type="button"
                 disabled={selectedBook.quantity > 0}
@@ -228,6 +231,7 @@ useEffect(() => {
         </div>
       )}
 
+  {/*checkout confirmation screen*/}
       {showCheckoutConfirmation && selectedBook && (
   <div
     className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
@@ -245,12 +249,14 @@ useEffect(() => {
         Are you sure you want to check out "{selectedBook.title}"?
          </p>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            {/*display due date to user, 2 weeks from time of checkout*/}
          Due Date:{" "}
           <span className="font-semibold text-zinc-900 dark:text-white">
             {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}
              </span>  
       </p>
 
+  {/*confirm checkout button*/}
       <div className="flex gap-3">
         <button
           type="button"
@@ -262,6 +268,7 @@ useEffect(() => {
           Yes, Checkout
         </button>
 
+  {/*cancel checkout button*/}
         <button
           type="button"
           onClick={() => setShowCheckoutConfirmation(false)}
