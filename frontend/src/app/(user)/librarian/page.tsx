@@ -31,6 +31,9 @@ export default function LibrarianDashboard()
 {
   const router = useRouter();
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null); // book shown in the details popup
+  const [showAddBook, setShowAddBook] = useState(false); // add book popup open or closed
+  const [inventoryVersion, setInventoryVersion] = useState(0); // bump to reload the inventory table
+  const [notice, setNotice] = useState(""); // success message shown above the inventory
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
@@ -76,13 +79,31 @@ export default function LibrarianDashboard()
 
         {/*book inventory section*/}
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Book Inventory</h2>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-xl font-semibold">Book Inventory</h2>
+            {/*add book button (opens add book popup)*/}
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddBook(true);
+                setNotice("");
+              }}
+              className="shrink-0 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              Add Book
+            </button>
+          </div>
+          {notice && (
+            <p role="status" className="text-sm text-green-600 dark:text-green-400">
+              {notice}
+            </p>
+          )}
           {/*search bar*/}
           <Suspense>
             <BookSearch />
           </Suspense>
           <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
-            <Inventory onSelectBook={setSelectedBookId} />
+            <Inventory key={inventoryVersion} onSelectBook={setSelectedBookId} />
           </Suspense>
         </section>
       </div>
@@ -90,6 +111,18 @@ export default function LibrarianDashboard()
       {/*book details popup (from clicking a title)*/}
       {selectedBookId !== null && (
         <BookDetails bookId={selectedBookId} onClose={() => setSelectedBookId(null)} />
+      )}
+
+      {/*add book popup*/}
+      {showAddBook && (
+        <AddBookForm
+          onClose={() => setShowAddBook(false)}
+          onAdded={(book) => {
+            setShowAddBook(false);
+            setNotice(`Added "${book.title}" (ID ${book.bookId}).`);
+            setInventoryVersion((version) => version + 1); // reload table so the new book shows up
+          }}
+        />
       )}
     </main>
   );
@@ -293,6 +326,189 @@ function BookDetails({ bookId, onClose }: { bookId: number; onClose: () => void 
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_BOOK_FORM = { isbn: "", title: "", author: "", category: "", quantity: "1", description: "" };
+
+// popup form for adding a new book to the catalog
+function AddBookForm({ onClose, onAdded }: { onClose: () => void; onAdded: (book: Book) => void })
+{
+  const [form, setForm] = useState(EMPTY_BOOK_FORM);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // updates one field of the form
+  function updateField(field: keyof typeof EMPTY_BOOK_FORM, value: string)
+  {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function addBook(e: React.SyntheticEvent<HTMLFormElement>)
+  {
+    e.preventDefault();
+    if (saving)
+    {
+      return;
+    }
+
+    // every field is required by the backend
+    const book = {
+      isbn: form.isbn.trim(),
+      title: form.title.trim(),
+      author: form.author.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      quantity: Number(form.quantity),
+    };
+
+    if (!book.isbn || !book.title || !book.author || !book.category || !book.description)
+    {
+      setError("Please fill in every field.");
+      return;
+    }
+
+    if (!/^[0-9-]+X?$/i.test(book.isbn))
+    { // isbns are digits and dashes (isbn-10 can end in X)
+      setError("ISBN can only contain numbers and dashes.");
+      return;
+    }
+
+    if (!Number.isInteger(book.quantity) || book.quantity < 0)
+    {
+      setError("Quantity must be a whole number of 0 or more.");
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+
+    try
+    {
+      const token = localStorage.getItem("token"); // get librarians login token
+
+      const response = await fetch("http://localhost:8080/book/admin/addBook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(book),
+      });
+
+      if (!response.ok)
+      { // check backend response is valid
+        if (response.status === 401 || response.status === 403)
+        {
+          setError("You are not allowed to add books. Try logging out and back in.");
+        }
+        else
+        { // backend rejects duplicate isbns and titles
+          setError(`Could not add book (${response.status}). A book with this ISBN or title may already exist.`);
+        }
+        return;
+      }
+
+      const added: Book = await response.json();
+      onAdded(added);
+    }
+    catch (err)
+    { // backend not running
+      console.error("Add book error:", err);
+      setError("Could not connect to the server. Please try again.");
+    }
+    finally
+    {
+      setSaving(false);
+    }
+  }
+
+  const inputClass = "w-full rounded-lg border border-zinc-300 bg-transparent p-2 dark:border-zinc-600";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => {
+        if (!saving) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-book-title"
+        className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={addBook} className="space-y-4">
+          <h2 id="add-book-title" className="text-2xl font-bold">Add Book</h2>
+
+          {/*book info fields*/}
+          <label className="block space-y-1 text-sm font-medium">
+            <span>ISBN</span>
+            <input className={inputClass} value={form.isbn} onChange={(e) => updateField("isbn", e.target.value)} />
+          </label>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Title</span>
+            <input className={inputClass} value={form.title} onChange={(e) => updateField("title", e.target.value)} />
+          </label>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Author</span>
+            <input className={inputClass} value={form.author} onChange={(e) => updateField("author", e.target.value)} />
+          </label>
+          <div className="flex gap-3">
+            <label className="block flex-1 space-y-1 text-sm font-medium">
+              <span>Category</span>
+              <input className={inputClass} value={form.category} onChange={(e) => updateField("category", e.target.value)} />
+            </label>
+            <label className="block w-28 space-y-1 text-sm font-medium">
+              <span>Quantity</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className={inputClass}
+                value={form.quantity}
+                onChange={(e) => updateField("quantity", e.target.value)}
+              />
+            </label>
+          </div>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Description</span>
+            <textarea
+              rows={4}
+              className={inputClass}
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+            />
+          </label>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
+
+          {/*save and cancel buttons*/}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {saving ? "Adding..." : "Add Book"}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
