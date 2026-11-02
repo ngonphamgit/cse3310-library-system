@@ -38,6 +38,7 @@ export default function registerPage()
       const data = await response.json(); //parse backends response
 
       localStorage.setItem("token", data.token); //store login token
+      localStorage.setItem("role", data.role); //store role so pages can check access
       router.push("/catalog"); //redirects user to the catalog upon success
     } 
     catch 

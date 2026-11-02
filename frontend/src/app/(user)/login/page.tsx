@@ -35,6 +35,7 @@ export default function loginPage()
       const data = await response.json(); //parse backends response
 
       localStorage.setItem("token", data.token); //store login token
+      localStorage.setItem("role", data.role); //store role so pages can check access
 
       if (data.role === "ROLE_ADMIN") 
         { //if user is a librarian, go to librarian page instead of catalog
