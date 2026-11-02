@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { InventoryTable } from "@/components/librarian/InventoryTable";
 import { BookPagination } from "@/components/books/BookPagination";
+import { BookSearch } from "@/components/books/BookSearch";
+import type { SearchBy } from "@/lib/api/books";
 import type { Book } from "@/types/book";
 import type { Page } from "@/types/page";
 
@@ -74,6 +76,10 @@ export default function LibrarianDashboard()
         {/*book inventory section*/}
         <section className="space-y-4">
           <h2 className="text-xl font-semibold">Book Inventory</h2>
+          {/*search bar*/}
+          <Suspense>
+            <BookSearch />
+          </Suspense>
           <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
             <Inventory />
           </Suspense>
@@ -83,46 +89,63 @@ export default function LibrarianDashboard()
   );
 }
 
-type InventoryResult =
-  | { page: number; data: Page<Book> }
-  | { page: number; error: string };
+const SEARCH_TYPES: SearchBy[] = ["title", "author", "category", "isbn"];
 
-// loads one page of every book (active and inactive) for the inventory table
+type InventoryResult =
+  | { url: string; data: Page<Book> }
+  | { url: string; error: string };
+
+// loads one page of books for the inventory table
+// no search: every book (active and inactive), search: only matching active books
 function Inventory()
 {
   const searchParams = useSearchParams();
   const page = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1); // page number from the url
+  const query = searchParams.get("query") ?? ""; // search text from the url
+  const byParam = searchParams.get("by");
+  const by: SearchBy = SEARCH_TYPES.includes(byParam as SearchBy) ? (byParam as SearchBy) : "title"; // search type, defaults to title
+
+  const params = new URLSearchParams({ page: String(page - 1), size: "20" });
+  let url: string;
+  if (query)
+  { // search results come back ranked by best match
+    params.set("query", query);
+    url = `http://localhost:8080/book/search/${by}?${params}`;
+  }
+  else
+  { // sort by id so rows stay in the same order between pages and after edits
+    params.set("sort", "bookId");
+    url = `http://localhost:8080/book?${params}`;
+  }
+
   const [result, setResult] = useState<InventoryResult | null>(null);
 
   useEffect(() => {
-    let cancelled = false; // ignore old responses if the page changes before they arrive
+    let cancelled = false; // ignore old responses if the search or page changes before they arrive
 
-    // sort by id so rows stay in the same order between pages and after edits
-    const params = new URLSearchParams({ page: String(page - 1), size: "20", sort: "bookId" });
-
-    fetch(`http://localhost:8080/book?${params}`)
+    fetch(url)
       .then((response) => {
         if (!response.ok)
-        { //check backend response is valid
+        { // check backend response is valid
           throw new Error(`Could not load books (${response.status}).`);
         }
         return response.json();
       })
       .then((data: Page<Book>) => {
-        if (!cancelled) setResult({ page, data });
+        if (!cancelled) setResult({ url, data });
       })
-      .catch((err) => { //backend not running or bad response
+      .catch((err) => { // backend not running or bad response
         console.error("Error loading books:", err);
-        if (!cancelled) setResult({ page, error: "Could not load books. Check that the backend is running." });
+        if (!cancelled) setResult({ url, error: "Could not load books. Check that the backend is running." });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [page]);
+  }, [url]);
 
-  //still loading this page
-  if (!result || result.page !== page)
+  // still loading this page or search
+  if (!result || result.url !== url)
   {
     return <p className="p-4 text-center">Loading books...</p>;
   }
@@ -132,10 +155,22 @@ function Inventory()
     return <p role="alert" className="text-red-600 dark:text-red-400">{result.error}</p>;
   }
 
+  // search found nothing
+  if (query && result.data.content.length === 0)
+  {
+    return (
+      <p className="p-4 text-center text-zinc-500 dark:text-zinc-400">
+        No active books match &quot;{query}&quot;. Removed (inactive) books only show up when not searching.
+      </p>
+    );
+  }
+
   return (
     <>
       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-        {result.data.totalElements} books in inventory
+        {query
+          ? `Results for "${query}" by ${by} (active books only)`
+          : `${result.data.totalElements} books in inventory`}
       </p>
       <InventoryTable books={result.data.content} />
       <div className="p-4">
