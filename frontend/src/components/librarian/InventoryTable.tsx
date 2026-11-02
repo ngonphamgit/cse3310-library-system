@@ -6,10 +6,11 @@ import type { Book } from "@/types/book";
 interface InventoryTableProps
 {
   books: Book[];
+  onSelectBook: (bookId: number) => void; // called when a title is clicked
 }
 
 //librarian view of every book, including inactive (removed) ones
-export function InventoryTable({ books = [] }: InventoryTableProps)
+export function InventoryTable({ books = [], onSelectBook }: InventoryTableProps)
 {
   return (
     <Table>
@@ -30,7 +31,16 @@ export function InventoryTable({ books = [] }: InventoryTableProps)
             {books.map((book) => ( //maps the rows to the books in database
               <Table.Row key={book.bookId} id={String(book.bookId)}>
                 <Table.Cell>{book.bookId}</Table.Cell>
-                <Table.Cell>{book.title}</Table.Cell>
+                {/*click title to open book details*/}
+                <Table.Cell>
+                  <button
+                    type="button"
+                    className="cursor-pointer text-left text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300"
+                    onClick={() => onSelectBook(book.bookId)}
+                  >
+                    {book.title}
+                  </button>
+                </Table.Cell>
                 <Table.Cell>{book.author}</Table.Cell>
                 <Table.Cell>{book.isbn}</Table.Cell>
                 <Table.Cell>{book.category}</Table.Cell>
