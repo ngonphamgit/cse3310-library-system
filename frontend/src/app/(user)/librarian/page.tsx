@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { InventoryTable } from "@/components/librarian/InventoryTable";
+import { BookPagination } from "@/components/books/BookPagination";
+import type { Book } from "@/types/book";
+import type { Page } from "@/types/page";
 
 type Access = "loading" | "loggedOut" | "notLibrarian" | "librarian";
 
@@ -54,7 +58,7 @@ export default function LibrarianDashboard()
   // ui
   return (
     <main className="min-h-screen bg-zinc-50 px-6 py-10 text-zinc-900 dark:bg-black dark:text-white">
-      <div className="mx-auto w-full max-w-4xl space-y-8">
+      <div className="mx-auto w-full max-w-6xl space-y-8">
         <header className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">Librarian Dashboard</h1>
           {/*log out button*/}
@@ -66,7 +70,77 @@ export default function LibrarianDashboard()
             Log Out
           </button>
         </header>
+
+        {/*book inventory section*/}
+        <section className="space-y-4">
+          <h2 className="text-xl font-semibold">Book Inventory</h2>
+          <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
+            <Inventory />
+          </Suspense>
+        </section>
       </div>
     </main>
+  );
+}
+
+type InventoryResult =
+  | { page: number; data: Page<Book> }
+  | { page: number; error: string };
+
+// loads one page of every book (active and inactive) for the inventory table
+function Inventory()
+{
+  const searchParams = useSearchParams();
+  const page = Math.max(1, Math.floor(Number(searchParams.get("page"))) || 1); // page number from the url
+  const [result, setResult] = useState<InventoryResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false; // ignore old responses if the page changes before they arrive
+
+    // sort by id so rows stay in the same order between pages and after edits
+    const params = new URLSearchParams({ page: String(page - 1), size: "20", sort: "bookId" });
+
+    fetch(`http://localhost:8080/book?${params}`)
+      .then((response) => {
+        if (!response.ok)
+        { //check backend response is valid
+          throw new Error(`Could not load books (${response.status}).`);
+        }
+        return response.json();
+      })
+      .then((data: Page<Book>) => {
+        if (!cancelled) setResult({ page, data });
+      })
+      .catch((err) => { //backend not running or bad response
+        console.error("Error loading books:", err);
+        if (!cancelled) setResult({ page, error: "Could not load books. Check that the backend is running." });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
+  //still loading this page
+  if (!result || result.page !== page)
+  {
+    return <p className="p-4 text-center">Loading books...</p>;
+  }
+
+  if ("error" in result)
+  {
+    return <p role="alert" className="text-red-600 dark:text-red-400">{result.error}</p>;
+  }
+
+  return (
+    <>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        {result.data.totalElements} books in inventory
+      </p>
+      <InventoryTable books={result.data.content} />
+      <div className="p-4">
+        <BookPagination page={page} totalPages={result.data.totalPages} />
+      </div>
+    </>
   );
 }
