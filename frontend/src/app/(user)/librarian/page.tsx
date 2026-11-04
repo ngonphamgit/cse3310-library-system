@@ -34,6 +34,7 @@ export default function LibrarianDashboard()
   const [showAddBook, setShowAddBook] = useState(false); // add book popup open or closed
   const [inventoryVersion, setInventoryVersion] = useState(0); // bump to reload the inventory table
   const [notice, setNotice] = useState(""); // success message shown above the inventory
+  const [editingBook, setEditingBook] = useState<Book | null>(null); // book shown in the edit popup
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
@@ -110,7 +111,27 @@ export default function LibrarianDashboard()
 
       {/*book details popup (from clicking a title)*/}
       {selectedBookId !== null && (
-        <BookDetails bookId={selectedBookId} onClose={() => setSelectedBookId(null)} />
+        <BookDetails
+          bookId={selectedBookId}
+          onClose={() => setSelectedBookId(null)}
+          onEdit={(book) => { // swap the details popup for the edit popup
+            setSelectedBookId(null);
+            setEditingBook(book);
+          }}
+        />
+      )}
+
+      {/*edit book popup*/}
+      {editingBook && (
+        <EditBookForm
+          book={editingBook}
+          onClose={() => setEditingBook(null)}
+          onSaved={(book) => {
+            setEditingBook(null);
+            setNotice(`Saved changes to "${book.title}" (ID ${book.bookId}).`);
+            setInventoryVersion((version) => version + 1); // reload table so the changes show up
+          }}
+        />
       )}
 
       {/*add book popup*/}
@@ -224,7 +245,7 @@ type DetailsResult =
   | { bookId: number; error: string };
 
 // popup that loads the latest info for one book from the backend
-function BookDetails({ bookId, onClose }: { bookId: number; onClose: () => void })
+function BookDetails({ bookId, onClose, onEdit }: { bookId: number; onClose: () => void; onEdit: (book: Book) => void })
 {
   const [result, setResult] = useState<DetailsResult | null>(null);
 
@@ -325,6 +346,17 @@ function BookDetails({ bookId, onClose }: { bookId: number; onClose: () => void 
               </p>
             </div>
           </div>
+        )}
+
+        {/*edit button (opens edit popup with this books info filled in)*/}
+        {book && (
+          <button
+            type="button"
+            onClick={() => onEdit(book)}
+            className="w-full rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800"
+          >
+            Edit Book
+          </button>
         )}
       </div>
     </div>
@@ -498,6 +530,198 @@ function AddBookForm({ onClose, onAdded }: { onClose: () => void; onAdded: (book
               className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
             >
               {saving ? "Adding..." : "Add Book"}
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// popup form for editing an existing book, starts filled in with the books current info
+function EditBookForm({ book, onClose, onSaved }: { book: Book; onClose: () => void; onSaved: (book: Book) => void })
+{
+  const [form, setForm] = useState({
+    title: book.title,
+    author: book.author,
+    category: book.category,
+    quantity: String(book.quantity),
+    description: book.description,
+  });
+  const [isActive, setIsActive] = useState(book.isActive);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // updates one field of the form
+  function updateField(field: keyof typeof form, value: string)
+  {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  async function saveBook(e: React.SyntheticEvent<HTMLFormElement>)
+  {
+    e.preventDefault();
+    if (saving)
+    {
+      return;
+    }
+
+    // every field is required by the backend
+    const updated = {
+      bookId: book.bookId,
+      title: form.title.trim(),
+      author: form.author.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      quantity: Number(form.quantity),
+      isActive,
+    };
+
+    if (!updated.title || !updated.author || !updated.category || !updated.description)
+    {
+      setError("Please fill in every field.");
+      return;
+    }
+
+    if (!Number.isInteger(updated.quantity) || updated.quantity < 0)
+    {
+      setError("Quantity must be a whole number of 0 or more.");
+      return;
+    }
+
+    setError("");
+    setSaving(true);
+
+    try
+    {
+      const token = localStorage.getItem("token"); // get librarians login token
+
+      // backend overwrites every field, so the whole book is sent
+      const response = await fetch("http://localhost:8080/book/admin/updateBook", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updated),
+      });
+
+      if (!response.ok)
+      { // check backend response is valid
+        if (response.status === 401 || response.status === 403)
+        {
+          setError("You are not allowed to edit books. Try logging out and back in.");
+        }
+        else
+        { // backend rejects duplicate titles
+          setError(`Could not save changes (${response.status}). Another book may already have this title.`);
+        }
+        return;
+      }
+
+      const saved: Book = await response.json();
+      onSaved(saved);
+    }
+    catch (err)
+    { // backend not running
+      console.error("Edit book error:", err);
+      setError("Could not connect to the server. Please try again.");
+    }
+    finally
+    {
+      setSaving(false);
+    }
+  }
+
+  const inputClass = "w-full rounded-lg border border-zinc-300 bg-transparent p-2 dark:border-zinc-600";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => {
+        if (!saving) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-book-title"
+        className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={saveBook} className="space-y-4">
+          <h2 id="edit-book-title" className="text-2xl font-bold">Edit Book</h2>
+
+          {/*isbn cant be changed, so it is shown but not editable*/}
+          <label className="block space-y-1 text-sm font-medium">
+            <span>ISBN (cannot be changed)</span>
+            <input className={`${inputClass} opacity-60`} value={book.isbn} disabled />
+          </label>
+
+          {/*book info fields*/}
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Title</span>
+            <input className={inputClass} value={form.title} onChange={(e) => updateField("title", e.target.value)} />
+          </label>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Author</span>
+            <input className={inputClass} value={form.author} onChange={(e) => updateField("author", e.target.value)} />
+          </label>
+          <div className="flex gap-3">
+            <label className="block flex-1 space-y-1 text-sm font-medium">
+              <span>Category</span>
+              <input className={inputClass} value={form.category} onChange={(e) => updateField("category", e.target.value)} />
+            </label>
+            <label className="block w-28 space-y-1 text-sm font-medium">
+              <span>Quantity</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className={inputClass}
+                value={form.quantity}
+                onChange={(e) => updateField("quantity", e.target.value)}
+              />
+            </label>
+          </div>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Description</span>
+            <textarea
+              rows={4}
+              className={inputClass}
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+            />
+          </label>
+
+          {/*active checkbox (unchecked hides the book from the student catalog)*/}
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+            <span>Active (shown in the student catalog)</span>
+          </label>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
+
+          {/*save and cancel buttons*/}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save Changes"}
             </button>
             <button
               type="button"
