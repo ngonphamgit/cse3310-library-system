@@ -37,4 +37,20 @@ public class Reservation {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private ReservationStatus status;
+
+    protected Reservation() {}
+
+    public Reservation(User user, Book book, LocalDateTime reservedAt, ReservationStatus status)
+    {
+        this.user = user;
+        this.book = book;
+        this.reservedAt = reservedAt;
+        this.status = status;
+    }
+
+    public Long getId() {return this.reservationId;}
+    public User getUser() {return this.user;}
+    public Book getBook() {return this.book;}
+    public LocalDateTime getReservedAt() {return this.reservedAt;}
+    public ReservationStatus getStatus() {return this.status;}
 }
