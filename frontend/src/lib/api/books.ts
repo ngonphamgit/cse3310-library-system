@@ -22,8 +22,9 @@ export async function searchBooks(by: SearchBy, query: string, page = 0, size = 
 	return res.json();
 }
 
-export async function getBooks(page = 0, size = 20): Promise<Page<Book>> {
+export async function getBooks(page = 0, size = 20, sort?: string): Promise<Page<Book>> {
 	const params = new URLSearchParams({ page: String(page), size: String(size) });
+	if (sort) params.set("sort", sort);
 	const res = await fetch(`${BASE_URL}/book?${params}`);
 
 	if (!res.ok) throw new Error(`Failed to fetch books: ${res.status}`);
