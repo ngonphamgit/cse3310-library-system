@@ -1,6 +1,6 @@
 package com.cse3310.library_backend.reservation;
 
-public record ReservationRequest(
+public record MakeReservationRequest(
     Long bookId
 ) {
     

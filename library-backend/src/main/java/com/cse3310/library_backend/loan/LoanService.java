@@ -31,6 +31,24 @@ public class LoanService
     }
 
     @Transactional
+    public LoanResponse checkoutBookFromReservation(User user, Book book)
+    {
+        //cannot have multiple loans of the same book at a time
+        if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
+        {
+             throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already checked out this book.");
+        }
+
+        LocalDate now = LocalDate.now();
+        LocalDate dueDate = now.plusDays(14);
+
+        Loan loan = new Loan(user, book, now, null, dueDate);
+        loanRepo.save(loan);
+
+        return toLoanResponse(loan);
+    }
+
+    @Transactional
     public LoanResponse checkoutBook(LoanCheckoutRequest request, Authentication auth)
     {
         User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
@@ -39,9 +57,7 @@ public class LoanService
         //cannot have multiple loans of the same book at a time
         if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
         {
-             throw new ResponseStatusException(HttpStatus.CONFLICT,
-        "You have already checked out this book."
-    );
+             throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already checked out this book.");
         }
 
         //later add functionality to allow user to
@@ -98,18 +114,16 @@ public class LoanService
         );
     }
 
-
-
     @Transactional(readOnly = true)
-public List<LoanResponse> getMyLoans(Authentication auth)
-{
-    User user = userRepo.findByUsername(auth.getName())
-        .orElseThrow(() -> new RuntimeException("User not found"));
+    public List<LoanResponse> getMyLoans(Authentication auth)
+    {
+        User user = userRepo.findByUsername(auth.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
-    List<Loan> loans = loanRepo.findAllByUserIdAndReturnDateIsNull(user.getId());
+        List<Loan> loans = loanRepo.findAllByUserIdAndReturnDateIsNull(user.getId());
 
-    return loans.stream()
-        .map(this::toLoanResponse)
-        .toList();
-}
+        return loans.stream()
+            .map(this::toLoanResponse)
+            .toList();
+    }
 }

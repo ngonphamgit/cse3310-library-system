@@ -53,4 +53,6 @@ public class Reservation {
     public Book getBook() {return this.book;}
     public LocalDateTime getReservedAt() {return this.reservedAt;}
     public ReservationStatus getStatus() {return this.status;}
+
+    public void setStatus(ReservationStatus status) {this.status = status;}
 }
