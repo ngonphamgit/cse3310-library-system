@@ -51,7 +51,7 @@ public CorsConfigurationSource corsConfigurationSource()
     );
 
     configuration.setAllowedMethods(
-        List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
     );
 
     configuration.setAllowedHeaders(

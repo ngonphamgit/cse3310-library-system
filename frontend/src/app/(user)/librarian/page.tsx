@@ -35,6 +35,7 @@ export default function LibrarianDashboard()
   const [inventoryVersion, setInventoryVersion] = useState(0); // bump to reload the inventory table
   const [notice, setNotice] = useState(""); // success message shown above the inventory
   const [editingBook, setEditingBook] = useState<Book | null>(null); // book shown in the edit popup
+  const [removingBook, setRemovingBook] = useState<Book | null>(null); // book shown in the remove confirmation popup
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
@@ -117,6 +118,23 @@ export default function LibrarianDashboard()
           onEdit={(book) => { // swap the details popup for the edit popup
             setSelectedBookId(null);
             setEditingBook(book);
+          }}
+          onRemove={(book) => { // swap the details popup for the remove confirmation
+            setSelectedBookId(null);
+            setRemovingBook(book);
+          }}
+        />
+      )}
+
+      {/*remove book confirmation popup*/}
+      {removingBook && (
+        <RemoveBookConfirm
+          book={removingBook}
+          onClose={() => setRemovingBook(null)}
+          onRemoved={(book) => {
+            setRemovingBook(null);
+            setNotice(`Marked "${book.title}" (ID ${book.bookId}) as inactive.`);
+            setInventoryVersion((version) => version + 1); // reload table so the status changes
           }}
         />
       )}
@@ -245,7 +263,7 @@ type DetailsResult =
   | { bookId: number; error: string };
 
 // popup that loads the latest info for one book from the backend
-function BookDetails({ bookId, onClose, onEdit }: { bookId: number; onClose: () => void; onEdit: (book: Book) => void })
+function BookDetails({ bookId, onClose, onEdit, onRemove }: { bookId: number; onClose: () => void; onEdit: (book: Book) => void; onRemove: (book: Book) => void })
 {
   const [result, setResult] = useState<DetailsResult | null>(null);
 
@@ -337,7 +355,7 @@ function BookDetails({ bookId, onClose, onEdit }: { bookId: number; onClose: () 
             </p>
             <p>
               <span className="font-semibold">Status:</span>{" "}
-              {book.isActive ? "Active" : "Inactive (removed from catalog)"}
+              {book.isActive ? "Active" : "Inactive (hidden from catalog search)"}
             </p>
             <div>
               <p className="font-semibold">Description</p>
@@ -348,15 +366,27 @@ function BookDetails({ bookId, onClose, onEdit }: { bookId: number; onClose: () 
           </div>
         )}
 
-        {/*edit button (opens edit popup with this books info filled in)*/}
         {book && (
-          <button
-            type="button"
-            onClick={() => onEdit(book)}
-            className="w-full rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800"
-          >
-            Edit Book
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            {/*edit button*/}
+            <button
+              type="button"
+              onClick={() => onEdit(book)}
+              className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800"
+            >
+              Edit Book
+            </button>
+            {/*remove button*/}
+            {book.isActive && (
+              <button
+                type="button"
+                onClick={() => onRemove(book)}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700"
+              >
+                Remove Book
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -702,10 +732,10 @@ function EditBookForm({ book, onClose, onSaved }: { book: Book; onClose: () => v
             />
           </label>
 
-          {/*active checkbox (unchecked hides the book from the student catalog)*/}
+          {/*active checkbox*/}
           <label className="flex items-center gap-2 text-sm font-medium">
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-            <span>Active (shown in the student catalog)</span>
+            <span>Active (inactive books are hidden from catalog search)</span>
           </label>
 
           {error && (
@@ -733,6 +763,118 @@ function EditBookForm({ book, onClose, onSaved }: { book: Book; onClose: () => v
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// confirmation popup for removing a book, the book is marked inactive instead of deleted
+function RemoveBookConfirm({ book, onClose, onRemoved }: { book: Book; onClose: () => void; onRemoved: (book: Book) => void })
+{
+  const [error, setError] = useState("");
+  const [removing, setRemoving] = useState(false);
+
+  async function removeBook()
+  {
+    if (removing)
+    {
+      return;
+    }
+
+    setError("");
+    setRemoving(true);
+
+    try
+    {
+      const token = localStorage.getItem("token"); // get librarians login token
+
+      const response = await fetch("http://localhost:8080/book/admin/removeBook", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookId: book.bookId }),
+      });
+
+      if (!response.ok)
+      { // check backend response is valid
+        if (response.status === 401 || response.status === 403)
+        {
+          setError("You are not allowed to remove books. Try logging out and back in.");
+        }
+        else
+        {
+          setError(`Could not remove book (${response.status}). Please try again.`);
+        }
+        return;
+      }
+
+      const removed: Book = await response.json();
+      onRemoved(removed);
+    }
+    catch (err)
+    { // backend not running
+      console.error("Remove book error:", err);
+      setError("Could not connect to the server. Please try again.");
+    }
+    finally
+    {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => {
+        if (!removing) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="remove-book-title"
+        className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="remove-book-title" className="text-xl font-bold">
+          Confirm Remove Book
+        </h2>
+
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          Are you sure you want to remove &quot;{book.title}&quot;?
+        </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          It will be marked Inactive and hidden from catalog search results. It stays in the inventory, and you can
+          bring it back by editing it and checking Active.
+        </p>
+
+        {error && (
+          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
+
+        {/*confirm and cancel buttons*/}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            disabled={removing}
+            onClick={removeBook}
+            className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {removing ? "Removing..." : "Yes, Remove Book"}
+          </button>
+          <button
+            type="button"
+            disabled={removing}
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
     </div>
   );
