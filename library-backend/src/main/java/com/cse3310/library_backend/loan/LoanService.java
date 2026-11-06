@@ -112,4 +112,28 @@ public List<LoanResponse> getMyLoans(Authentication auth)
         .map(this::toLoanResponse)
         .toList();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@Transactional(readOnly = true)
+public List<LoanResponse> getAllActiveLoans() 
+{
+    return loanRepo.findAllByReturnDateIsNull()
+        .stream()
+        .map(this::toLoanResponse)
+        .toList();
 }
+}
+

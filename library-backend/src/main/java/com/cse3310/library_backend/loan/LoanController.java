@@ -40,4 +40,12 @@ public class LoanController {
     {
        return loanService.getMyLoans(auth);
     }
+
+
+    @GetMapping("/all-active")
+@PreAuthorize("hasRole('ADMIN')")
+public List<LoanResponse> getAllActiveLoans()
+{
+    return loanService.getAllActiveLoans();
+}
 }

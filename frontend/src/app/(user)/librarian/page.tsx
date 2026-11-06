@@ -39,6 +39,8 @@ export default function LibrarianDashboard()
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
+  const [showAllCheckouts, setShowAllCheckouts] = useState(false); //for showing active checkouts
+
   useEffect(() => {
     if (access === "loggedOut")
     { // not logged in, send to login page
@@ -82,33 +84,59 @@ export default function LibrarianDashboard()
         {/*book inventory section*/}
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-semibold">Book Inventory</h2>
-            {/*add book button (opens add book popup)*/}
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddBook(true);
-                setNotice("");
-              }}
-              className="shrink-0 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-            >
-              Add Book
-            </button>
-          </div>
+  <h2 className="text-xl font-semibold">
+    {showAllCheckouts ? "Active Checkouts" : "Book Inventory"}
+  </h2>
+
+  <div className="flex flex-wrap gap-3">
+    <button
+      type="button"
+      onClick={() => setShowAllCheckouts((current) => !current)}
+      className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
+    >
+      {showAllCheckouts ? "View Inventory" : "View Active Checkouts"}
+    </button>
+
+    {!showAllCheckouts && (
+      <button
+        type="button"
+        onClick={() => {
+          setShowAddBook(true);
+          setNotice("");
+        }}
+        className="shrink-0 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
+            Add Book
+          </button>
+          )}
+        </div>
+      </div>
+
+
           {notice && (
             <p role="status" className="text-sm text-green-600 dark:text-green-400">
               {notice}
             </p>
           )}
+
+
+
+          
           {/*search bar*/}
-          <Suspense>
-            <BookSearch />
-          </Suspense>
-          <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
-            <Inventory key={inventoryVersion} onSelectBook={setSelectedBookId} />
-          </Suspense>
-        </section>
-      </div>
+          {showAllCheckouts ? (
+  <ActiveCheckouts/>
+) : (
+  <>
+    <Suspense>
+      <BookSearch />
+    </Suspense>
+
+    <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
+      <Inventory
+        key={inventoryVersion}
+        onSelectBook={setSelectedBookId}/>
+    </Suspense>
+  </>
+)}
 
       {/*book details popup (from clicking a title)*/}
       {selectedBookId !== null && (
@@ -163,7 +191,9 @@ export default function LibrarianDashboard()
           }}
         />
       )}
-    </main>
+       </section>
+    </div>
+  </main>
   );
 }
 
@@ -824,6 +854,8 @@ function RemoveBookConfirm({ book, onClose, onRemoved }: { book: Book; onClose: 
     }
   }
 
+
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -879,3 +911,155 @@ function RemoveBookConfirm({ book, onClose, onRemoved }: { book: Book; onClose: 
     </div>
   );
 }
+
+  type ActiveLoan = 
+  {
+  user: 
+  {
+    username: string;
+  };
+  book: 
+  {
+    title: string;
+  };
+  borrowDate: string;
+  dueDate: string;
+};
+
+function ActiveCheckouts() //function to look for active checkouts
+{
+  const [loans, setLoans] = useState<ActiveLoan[]>([]); //state to hold loans
+  const [loading, setLoading] = useState(true); //state for loading
+  const [error, setError] = useState(""); //state for error status
+
+  useEffect(() => {
+    async function loadLoans() //load loan function
+    {
+      try 
+      {
+        const token = localStorage.getItem("token"); //get users login token
+
+        if (!token) //if token is not found user is not logged in
+        {
+          throw new Error("You are not logged in.");
+        }
+
+        const response = await fetch( //fetch the active loans from the backend
+          "http://localhost:8080/loan/all-active",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok)  //check backend response
+          {
+          throw new Error(
+            `Could not load active checkouts (${response.status}).`
+          );
+        }
+
+        const data: ActiveLoan[] = await response.json();
+        setLoans(data);
+      } 
+      catch (err)  //catch any errors from backend
+      {
+        console.error("Error loading active checkouts:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not load active checkouts."
+        );
+      } 
+      finally 
+      {
+        setLoading(false);
+      }
+    }
+  loadLoans();
+  }, []);
+
+  if (loading)  //check if the data is loading
+    {
+    return (
+      <p className="p-4 text-center">
+        Loading active checkouts...
+      </p>
+    );
+  }
+
+  if (error)  //check if there was an error
+    {
+    return (
+      <p role="alert" className="p-4 text-center text-red-600">
+        {error}
+      </p>
+    );
+  }
+
+  if (loans.length === 0)  //check if there are any loans in the system
+    {
+    return (
+      <p className="p-4 text-center text-zinc-500">
+        There are currently no active checkouts.
+      </p>
+    );
+  }
+// create ui
+  return (
+    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-zinc-100 dark:bg-zinc-800">
+          {/* Table headers */}
+          <tr>
+            <th className="p-3">Borrower</th>
+            <th className="p-3">Book Title</th>
+            <th className="p-3">Borrow Date</th>
+            <th className="p-3">Due Date</th>
+            <th className="p-3">Status</th>
+          </tr>
+        </thead>
+      {/*  map loans and due date */}
+        <tbody>
+          {loans.map((loan) => {
+            const overdue =
+              new Date(loan.dueDate + "T00:00:00").getTime() <
+              new Date().setHours(0, 0, 0, 0);
+
+
+              {/* create table entries */}
+            return (
+              <tr
+                key={`${loan.user.username}-${loan.book.title}-${loan.borrowDate}`}
+                className="border-t border-zinc-200 dark:border-zinc-700"
+              >
+                <td className="p-3">{loan.user.username}</td>
+                <td className="p-3">{loan.book.title}</td>
+                <td className="p-3">{loan.borrowDate}</td>
+                <td className="p-3">{loan.dueDate}</td>
+                <td className="p-3">
+                  <span
+                    className={
+                      overdue
+                        ? "font-semibold text-red-500"
+                        : "font-semibold text-green-600"
+                    }>
+                    {overdue ? "Overdue" : "Active"}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+{/* display number of active checkouts */}
+      <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
+        Total active checkouts: {loans.length}
+      </p>
+    </div>
+  );
+}
+
