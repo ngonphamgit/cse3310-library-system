@@ -31,4 +31,11 @@ public class ReservationController {
     {
         return reservationService.fulfillReservation(request, auth);
     }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @PostMapping("/cancel")
+    public ReservationResponse cancelReservation(@RequestBody CancelReservationRequest request, Authentication auth)
+    {
+        return reservationService.cancelReservation(request, auth);
+    }
 }

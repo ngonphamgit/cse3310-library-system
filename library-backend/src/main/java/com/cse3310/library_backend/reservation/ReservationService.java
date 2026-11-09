@@ -67,7 +67,6 @@ public class ReservationService {
         User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
         Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
 
-        System.out.println(user.getId() + " " + book.getBookId());
         Reservation r = reservationRepo.findByUserIdAndBookIdAndStatus(user.getId(), book.getBookId(), ReservationStatus.ACTIVE)
                         .orElseThrow(() -> new RuntimeException("No active reservation for this book"));
 
@@ -77,6 +76,20 @@ public class ReservationService {
         reservationRepo.save(r);
 
         return toFulfillReservationResponse(loanResponse, toReservationResponse(r));
+    }
+
+    public ReservationResponse cancelReservation(CancelReservationRequest request, Authentication auth)
+    {
+        User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
+        Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
+        
+        Reservation r = reservationRepo.findByUserIdAndBookIdAndStatus(user.getId(), book.getBookId(), ReservationStatus.ACTIVE)
+                        .orElseThrow(() -> new RuntimeException("No active reservation for this book"));
+
+        r.setStatus(ReservationStatus.CANCELLED);
+        reservationRepo.save(r);
+
+        return toReservationResponse(r);
     }
 
     private ReservationResponse toReservationResponse(Reservation r)
