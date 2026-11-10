@@ -13,6 +13,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cse3310.library_backend.book.Book;
 import com.cse3310.library_backend.book.BookRepository;
+import com.cse3310.library_backend.reservation.Reservation;
+import com.cse3310.library_backend.reservation.ReservationRepository;
+import com.cse3310.library_backend.reservation.ReservationService;
+import com.cse3310.library_backend.reservation.ReservationStatus;
 import com.cse3310.library_backend.user.User;
 import com.cse3310.library_backend.user.UserRepository;
 
@@ -22,12 +26,14 @@ public class LoanService
     private final LoanRepository loanRepo;
     private final UserRepository userRepo;
     private final BookRepository bookRepo;
+    private final ReservationRepository reservationRepo;
 
-    public LoanService(LoanRepository loanRepo, UserRepository userRepo, BookRepository bookRepo)
+    public LoanService(LoanRepository loanRepo, UserRepository userRepo, BookRepository bookRepo, ReservationRepository reservationRepo)
     {
         this.loanRepo = loanRepo;
         this.userRepo = userRepo;
         this.bookRepo = bookRepo;
+        this.reservationRepo = reservationRepo;
     }
 
     @Transactional
@@ -97,7 +103,18 @@ public class LoanService
         loan.setReturnDate(LocalDate.now());
         loanRepo.save(loan);
 
-        book.setQuantity(book.getQuantity() + 1);
+        //notify next user in reservation queue that a copy has become available
+        List<Reservation> reservations = reservationRepo.findAllByBookIdAndStatusOrderByReservedAtAsc(book.getBookId(), ReservationStatus.ACTIVE);
+        if (book.getQuantity() == 0 && !reservations.isEmpty())
+        {
+            Reservation firstReservation = reservations.get(0);
+            firstReservation.setStatus(ReservationStatus.READY);
+            reservationRepo.save(firstReservation);
+        }
+        else
+        {
+            book.setQuantity(book.getQuantity() + 1);
+        }
         bookRepo.save(book);
 
         return toLoanResponse(loan);
