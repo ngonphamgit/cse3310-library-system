@@ -143,4 +143,14 @@ public class LoanService
             .map(this::toLoanResponse)
             .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<LoanResponse> getAllActiveLoans() 
+    {
+        return loanRepo.findAllByReturnDateIsNull()
+            .stream()
+            .map(this::toLoanResponse)
+            .toList();
+    }
 }
+
