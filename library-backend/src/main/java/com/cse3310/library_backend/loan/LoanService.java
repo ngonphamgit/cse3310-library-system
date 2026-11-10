@@ -13,6 +13,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cse3310.library_backend.book.Book;
 import com.cse3310.library_backend.book.BookRepository;
+import com.cse3310.library_backend.reservation.Reservation;
+import com.cse3310.library_backend.reservation.ReservationRepository;
+import com.cse3310.library_backend.reservation.ReservationService;
+import com.cse3310.library_backend.reservation.ReservationStatus;
 import com.cse3310.library_backend.user.User;
 import com.cse3310.library_backend.user.UserRepository;
 
@@ -22,12 +26,32 @@ public class LoanService
     private final LoanRepository loanRepo;
     private final UserRepository userRepo;
     private final BookRepository bookRepo;
+    private final ReservationRepository reservationRepo;
 
-    public LoanService(LoanRepository loanRepo, UserRepository userRepo, BookRepository bookRepo)
+    public LoanService(LoanRepository loanRepo, UserRepository userRepo, BookRepository bookRepo, ReservationRepository reservationRepo)
     {
         this.loanRepo = loanRepo;
         this.userRepo = userRepo;
         this.bookRepo = bookRepo;
+        this.reservationRepo = reservationRepo;
+    }
+
+    @Transactional
+    public LoanResponse checkoutBookFromReservation(User user, Book book)
+    {
+        //cannot have multiple loans of the same book at a time
+        if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
+        {
+             throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already checked out this book.");
+        }
+
+        LocalDate now = LocalDate.now();
+        LocalDate dueDate = now.plusDays(14);
+
+        Loan loan = new Loan(user, book, now, null, dueDate);
+        loanRepo.save(loan);
+
+        return toLoanResponse(loan);
     }
 
     @Transactional
@@ -39,9 +63,7 @@ public class LoanService
         //cannot have multiple loans of the same book at a time
         if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
         {
-             throw new ResponseStatusException(HttpStatus.CONFLICT,
-        "You have already checked out this book."
-    );
+             throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already checked out this book.");
         }
 
         //later add functionality to allow user to
@@ -81,7 +103,18 @@ public class LoanService
         loan.setReturnDate(LocalDate.now());
         loanRepo.save(loan);
 
-        book.setQuantity(book.getQuantity() + 1);
+        //notify next user in reservation queue that a copy has become available
+        List<Reservation> reservations = reservationRepo.findAllByBookIdAndStatusOrderByReservedAtAsc(book.getBookId(), ReservationStatus.ACTIVE);
+        if (book.getQuantity() == 0 && !reservations.isEmpty())
+        {
+            Reservation firstReservation = reservations.get(0);
+            firstReservation.setStatus(ReservationStatus.READY);
+            reservationRepo.save(firstReservation);
+        }
+        else
+        {
+            book.setQuantity(book.getQuantity() + 1);
+        }
         bookRepo.save(book);
 
         return toLoanResponse(loan);
@@ -98,42 +131,26 @@ public class LoanService
         );
     }
 
+    @Transactional(readOnly = true)
+    public List<LoanResponse> getMyLoans(Authentication auth)
+    {
+        User user = userRepo.findByUsername(auth.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
 
+        List<Loan> loans = loanRepo.findAllByUserIdAndReturnDateIsNull(user.getId());
+
+        return loans.stream()
+            .map(this::toLoanResponse)
+            .toList();
+    }
 
     @Transactional(readOnly = true)
-public List<LoanResponse> getMyLoans(Authentication auth)
-{
-    User user = userRepo.findByUsername(auth.getName())
-        .orElseThrow(() -> new RuntimeException("User not found"));
-
-    List<Loan> loans = loanRepo.findAllByUserIdAndReturnDateIsNull(user.getId());
-
-    return loans.stream()
-        .map(this::toLoanResponse)
-        .toList();
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@Transactional(readOnly = true)
-public List<LoanResponse> getAllActiveLoans() 
-{
-    return loanRepo.findAllByReturnDateIsNull()
-        .stream()
-        .map(this::toLoanResponse)
-        .toList();
-}
+    public List<LoanResponse> getAllActiveLoans() 
+    {
+        return loanRepo.findAllByReturnDateIsNull()
+            .stream()
+            .map(this::toLoanResponse)
+            .toList();
+    }
 }
 
