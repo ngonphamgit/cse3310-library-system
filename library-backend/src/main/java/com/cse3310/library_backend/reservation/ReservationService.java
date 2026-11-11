@@ -38,6 +38,21 @@ public class ReservationService {
         this.loanService = loanService;
     }
 
+
+//get all users active reservations
+    public List<ReservationResponse> getMyReservations(Authentication auth)
+    {
+        User user = userRepo.findByUsername(auth.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+     return reservationRepo.findAllByUserIdOrderByReservedAtAsc(user.getId())
+            .stream()
+            .map(this::toReservationResponse)
+            .toList();
+    }
+
+
+
     public ReservationResponse makeReservation(MakeReservationRequest request, Authentication auth)
     {  
         User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
