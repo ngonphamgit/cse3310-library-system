@@ -3,6 +3,7 @@ package com.cse3310.library_backend.reservation;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Comparator;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -133,5 +134,16 @@ public class ReservationService {
             loanResponse,
             reservationResponse
         );
+    }
+
+
+
+    public List<ReservationResponse> getAllReservations() 
+    {
+    return reservationRepo.findAll()
+        .stream()
+        .sorted(Comparator.comparing(Reservation::getReservedAt).reversed())
+        .map(this::toReservationResponse)
+        .toList();
     }
 }
