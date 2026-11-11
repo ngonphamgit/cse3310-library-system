@@ -15,6 +15,7 @@ const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 const [actionMessage, setActionMessage] = useState("");
 const [displayBooks, setDisplayBooks] = useState<Book[]>(books);
 const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
+const [showReservationConfirmation, setShowReservationConfirmation] = useState(false);
 
 useEffect(() => {
   setDisplayBooks(books);
@@ -104,6 +105,68 @@ useEffect(() => {
   }
 }
 
+
+
+async function reserveBook() //run when reserve button pressed
+  {
+  if (!selectedBook) //check if selected book is valid
+    {
+    return;
+    } 
+
+  setActionMessage("Reserving book..."); //message to user telling them something is happening
+
+  try {
+    const token = localStorage.getItem("token"); //get the login token for user
+
+    if (!token)  //if the token is invalid, the user isnt logged in so stop checkout
+    {
+      setActionMessage("Please log in before reserving a book.");
+      return;
+    }
+
+    const response = await fetch("http://localhost:8080/reservation/add", { //fetch reserve endpoint
+      method: "POST",
+      headers: 
+      {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, //authorize user
+      },
+      body: JSON.stringify({ bookId: selectedBook.bookId,}),
+    });
+
+    if (!response.ok) //check backend response is valid
+      {
+      const errorText = await response.text();
+
+    if (response.status === 500) 
+    { //duplicate reservation error
+    setActionMessage("You have already reserved or checked out this book.");
+    } 
+    else if(response.status === 403)
+    {
+      setActionMessage("You need to log in to reserve a book.");
+    }
+    else
+    { //otherwise other error
+    setActionMessage(`Reservation failed (${response.status}). Please try again.`);
+    }
+      return;
+    }
+
+    const loan = await response.json();
+
+
+    //otherwise reservation succeeded, notify user that it succeeded
+    setActionMessage(`Successfully reserved "${selectedBook.title}".`);
+
+  } 
+  catch (error) 
+  {
+    console.error("Reservation error:", error);
+    setActionMessage("Could not connect to the server. Please try again."); //backend isnt connected
+  }
+}
 
   return (
     <>
@@ -220,9 +283,7 @@ useEffect(() => {
               <button
                 type="button"
                 disabled={selectedBook.quantity > 0}
-                onClick={() =>
-                  setActionMessage("reservation not yet implemented")
-                }
+               onClick={() => setShowReservationConfirmation(true)}
                 className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20">
                 Reserve
               </button>
@@ -279,6 +340,55 @@ useEffect(() => {
     </div>
   </div>
 )}
+
+
+
+
+  {/*reservation confirmation screen*/}
+      {showReservationConfirmation && selectedBook && (
+  <div
+    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+    onClick={() => setShowReservationConfirmation(false)}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+      onClick={(e) => e.stopPropagation()}>
+      <h2 className="text-xl font-bold">
+        Confirm Reservation
+      </h2>
+
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        Are you sure you want to reserve this book? "{selectedBook.title}"?
+         </p>
+  
+
+  {/*confirm reservation button*/}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setShowReservationConfirmation(false);
+            reserveBook();
+          }}
+          className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800">
+          Yes, Reserve
+        </button>
+
+  {/*cancel reservation button*/}
+        <button
+          type="button"
+          onClick={() => setShowReservationConfirmation(false)}
+          className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </>
   );
+
+
+  
 }

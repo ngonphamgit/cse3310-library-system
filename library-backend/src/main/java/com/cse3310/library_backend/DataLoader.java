@@ -41,7 +41,7 @@ public class DataLoader implements CommandLineRunner
                 faker.book().author(),
                 faker.lorem().paragraph(),
                 faker.book().genre(),
-                faker.number().numberBetween(0, 10),
+                faker.number().numberBetween(1, 10),
                 true
             );
 

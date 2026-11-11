@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.List;
 
 @RestController 
 @RequestMapping("/reservation")
@@ -37,5 +40,14 @@ public class ReservationController {
     public ReservationResponse cancelReservation(@RequestBody CancelReservationRequest request, Authentication auth)
     {
         return reservationService.cancelReservation(request, auth);
+    }
+
+
+    //endpoint to get users reservations
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @GetMapping("/my-reservations")
+    public List<ReservationResponse> getMyReservations(Authentication auth)
+    {
+        return reservationService.getMyReservations(auth);
     }
 }
