@@ -23,4 +23,11 @@ public class UserController {
     {
         return userService.blockUser(userId, auth);
     }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @PostMapping("/unblock/{userId}")
+    public UserResponse unblockUser(@PathVariable Long userId, Authentication auth)
+    {
+        return userService.unblockUser(userId, auth);
+    }
 }

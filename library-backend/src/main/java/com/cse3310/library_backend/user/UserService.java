@@ -21,6 +21,15 @@ public class UserService {
         return toUserResponse(user);
     }
 
+    public UserResponse unblockUser(Long userId, Authentication auth)
+    {
+        User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        user.setIsBlocked(false);
+        userRepo.save(user);
+
+        return toUserResponse(user);
+    }
+
     public UserResponse toUserResponse(User user)
     {
         return new UserResponse(
