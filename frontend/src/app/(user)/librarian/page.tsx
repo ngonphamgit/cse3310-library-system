@@ -39,7 +39,8 @@ export default function LibrarianDashboard()
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
-  const [showAllCheckouts, setShowAllCheckouts] = useState(false); //for showing active checkouts
+  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations">
+  ("inventory");
 
   useEffect(() => {
     if (access === "loggedOut")
@@ -84,30 +85,30 @@ export default function LibrarianDashboard()
         {/*book inventory section*/}
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-4">
-  <h2 className="text-xl font-semibold">
-    {showAllCheckouts ? "Active Checkouts" : "Book Inventory"}
-  </h2>
+  <h2>
+  {dashboardView === "inventory"? "Book Inventory": dashboardView === "checkouts"
+      ? "Active Checkouts"
+      : "All Reservations"}
+</h2>
 
   <div className="flex flex-wrap gap-3">
-    <button
-      type="button"
-      onClick={() => setShowAllCheckouts((current) => !current)}
-      className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800"
-    >
-      {showAllCheckouts ? "View Inventory" : "View Active Checkouts"}
-    </button>
+<button
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+ onClick={() => setDashboardView("inventory")}>
+  View Inventory
+</button>
 
-    {!showAllCheckouts && (
-      <button
-        type="button"
-        onClick={() => {
-          setShowAddBook(true);
-          setNotice("");
-        }}
-        className="shrink-0 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
-            Add Book
-          </button>
-          )}
+<button 
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+onClick={() => setDashboardView("checkouts")}>
+  View Active Checkouts
+</button>
+
+<button 
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+onClick={() => setDashboardView("reservations")}>
+  View All Reservations
+</button>
         </div>
       </div>
 
@@ -122,13 +123,27 @@ export default function LibrarianDashboard()
 
           
           {/*search bar*/}
-          {showAllCheckouts ? (
-  <ActiveCheckouts/>
+          
+          {dashboardView === "checkouts" ? (
+  <ActiveCheckouts />
+) : dashboardView === "reservations" ? (
+  <AllReservations />
 ) : (
   <>
+  <div className="flex items-center justify-between gap-4">
     <Suspense>
       <BookSearch />
     </Suspense>
+
+{dashboardView === "inventory" && (
+  <button
+  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+   onClick={() => setShowAddBook(true)}>
+    Add Book
+    
+  </button>)}
+  </div>
+  
 
     <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
       <Inventory
@@ -1058,6 +1073,154 @@ function ActiveCheckouts() //function to look for active checkouts
 {/* display number of active checkouts */}
       <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
         Total active checkouts: {loans.length}
+      </p>
+    </div>
+  );
+}
+
+
+
+type AllReservation = {
+  reservationId: number;
+  user: {
+    username: string;
+  };
+  book: {
+    title: string;
+  };
+  reservedAt: string;
+  status: "ACTIVE" | "READY" | "FULFILLED" | "CANCELLED";
+};
+
+function AllReservations() // function to show every reservation
+{
+  //reservation states
+  const [reservations, setReservations] = useState<AllReservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => { //load upon click
+    async function loadReservations()
+    {
+      try
+      {
+        const token = localStorage.getItem("token");
+
+        if (!token) //check if login token is valid
+        {
+          throw new Error("You are not logged in.");
+        }
+
+        const response = await fetch(
+          "http://localhost:8080/reservation/all",
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok)
+        { //check backend response
+          throw new Error(
+            `Could not load reservations (${response.status}).`
+          );
+        }
+
+        const data: AllReservation[] = await response.json();
+        setReservations(data);
+      }
+      catch (err)
+      {
+        console.error("Error loading reservations:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not load reservations."
+        );
+      }
+      finally
+      {
+        setLoading(false);
+      }
+    }
+
+    loadReservations();
+  }, []);
+
+  if (loading)//make loading msg
+  {
+    return (
+      <p className="p-4 text-center">
+        Loading reservations...
+      </p>
+    );
+  }
+
+  if (error)
+  {
+    return (
+      <p role="alert" className="p-4 text-center text-red-600">
+        {error}
+      </p>
+    );
+  }
+
+  if (reservations.length === 0)
+  { //check if there are any reservations
+    return (
+      <p className="p-4 text-center text-zinc-500">
+        There are currently no reservations.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-zinc-100 dark:bg-zinc-800">
+          <tr>
+            <th className="p-3">Borrower</th>
+            <th className="p-3">Book Title</th>
+            <th className="p-3">Reservation Date</th>
+            <th className="p-3">Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {reservations.map((reservation) => (
+            <tr
+              key={reservation.reservationId}
+              className="border-t border-zinc-200 dark:border-zinc-700"
+            >
+              <td className="p-3">{reservation.user.username}</td>
+              <td className="p-3">{reservation.book.title}</td>
+              <td className="p-3">
+                {new Date(reservation.reservedAt).toLocaleString()}
+              </td>
+              <td className="p-3">
+                <span
+                  className={
+                    reservation.status === "READY"
+                      ? "font-semibold text-blue-600"
+                      : reservation.status === "ACTIVE"
+                        ? "font-semibold text-amber-600"
+                        : reservation.status === "FULFILLED"
+                          ? "font-semibold text-green-600"
+                          : "font-semibold text-zinc-500"
+                  }
+                >
+                  {reservation.status}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
+        Total reservations: {reservations.length}
       </p>
     </div>
   );

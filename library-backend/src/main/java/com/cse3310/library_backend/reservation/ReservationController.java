@@ -50,4 +50,12 @@ public class ReservationController {
     {
         return reservationService.getMyReservations(auth);
     }
+
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/all")
+    public List<ReservationResponse> getAllReservations() 
+    {
+    return reservationService.getAllReservations();
+    }
 }
