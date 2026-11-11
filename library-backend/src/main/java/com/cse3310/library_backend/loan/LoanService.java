@@ -60,6 +60,11 @@ public class LoanService
         User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
         Book book = bookRepo.findById(request.bookId()).orElseThrow(() -> new RuntimeException("Book not found"));
 
+        if (user.getIsBlocked())
+        {
+            throw new RuntimeException("You are currently blocked from checking out books");
+        }
+
         //cannot have multiple loans of the same book at a time
         if (loanRepo.existsByUserIdAndBookIdAndReturnDateIsNull(user.getId(), book.getId()))
         {
