@@ -1,8 +1,11 @@
 package com.cse3310.library_backend.book;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -83,5 +86,19 @@ public class BookController
     public BookResponse updateBook(@RequestBody UpdateBookRequest request)
     {
         return bookService.updateBook(request);
+    }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @PostMapping("/request")
+    public BookRequestResponse sendBookRequest(@RequestBody BookRequestRequest request, Authentication auth)
+    {
+        return bookService.sendBookRequest(request, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN')")
+    @GetMapping ("/getRequests")
+    public List<BookRequestResponse> getAllBookRequests()
+    {
+        return bookService.getAllBookRequests();
     }
 }
