@@ -172,6 +172,14 @@ public List<Book> getRecommendations(Authentication auth)
     //get all of users checkout history, including returned books
     List<Loan> loans = loanRepo.findAllByUser(user);
 
+
+    //Get book ids for books previously checked out (for duplicate filtering)
+    List<Long> checkedOutBookIds = loans.stream()
+        .map(loan -> loan.getBook().getId())
+        .distinct()
+        .toList();
+
+
     //collect the author names of the books they have checked out
     List<String> authors = loans.stream()
         .map(loan -> loan.getBook().getAuthor())
@@ -185,8 +193,10 @@ public List<Book> getRecommendations(Authentication auth)
         return List.of();
     }
 
-    //find books in database by the author
-    return bookRepo.findAllByAuthorIn(authors);
+    //find books in database by the author and filter out ones already checked out
+        return bookRepo.findAllByAuthorIn(authors).stream()
+        .filter(book -> !checkedOutBookIds.contains(book.getId()))
+        .toList();
 }
 }
 
