@@ -39,7 +39,7 @@ export default function LibrarianDashboard()
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
-  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations">
+  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations" | "users">
   ("inventory");
 
   useEffect(() => {
@@ -88,7 +88,9 @@ export default function LibrarianDashboard()
   <h2>
   {dashboardView === "inventory"? "Book Inventory": dashboardView === "checkouts"
       ? "Active Checkouts"
-      : "All Reservations"}
+      : dashboardView === "reservations"
+      ? "All Reservations"
+      : "Manage Users"}
 </h2>
 
   <div className="flex flex-wrap gap-3">
@@ -109,6 +111,12 @@ className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 onClick={() => setDashboardView("reservations")}>
   View All Reservations
 </button>
+
+<button
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+onClick={() => setDashboardView("users")}>
+  Manage Users
+</button>
         </div>
       </div>
 
@@ -128,6 +136,8 @@ onClick={() => setDashboardView("reservations")}>
   <ActiveCheckouts />
 ) : dashboardView === "reservations" ? (
   <AllReservations />
+) : dashboardView === "users" ? (
+  <ManageUsers />
 ) : (
   <>
   <div className="flex items-center justify-between gap-4">
@@ -1226,3 +1236,143 @@ function AllReservations() // function to show every reservation
   );
 }
 
+
+// user as it appears inside loan and reservation responses
+type ListedUser = {
+  id: number;
+  username: string;
+  email: string;
+  role: "ROLE_STUDENT" | "ROLE_ADMIN";
+  isBlocked: boolean;
+};
+
+function ManageUsers() // function to list users so librarians can block/unblock them
+{
+  const [users, setUsers] = useState<ListedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    // there is no endpoint that lists every user, so collect the users
+    // found in active checkouts and reservations
+    async function loadUsers()
+    {
+      try
+      {
+        const token = localStorage.getItem("token");
+
+        if (!token) //check if login token is valid
+        {
+          throw new Error("You are not logged in.");
+        }
+
+        const headers = { Authorization: `Bearer ${token}` };
+        const [loanResponse, reservationResponse] = await Promise.all([
+          fetch("http://localhost:8080/loan/all-active", { headers }),
+          fetch("http://localhost:8080/reservation/all", { headers }),
+        ]);
+
+        if (!loanResponse.ok || !reservationResponse.ok)
+        { //check backend responses
+          const status = !loanResponse.ok ? loanResponse.status : reservationResponse.status;
+          throw new Error(`Could not load users (${status}).`);
+        }
+
+        const loans: { user: ListedUser }[] = await loanResponse.json();
+        const reservations: { user: ListedUser }[] = await reservationResponse.json();
+
+        // same user can show up many times, so keep one entry per user id
+        const byId = new Map<number, ListedUser>();
+        for (const item of [...loans, ...reservations])
+        {
+          byId.set(item.user.id, item.user);
+        }
+
+        setUsers([...byId.values()].sort((a, b) => a.username.localeCompare(b.username)));
+      }
+      catch (err)
+      {
+        console.error("Error loading users:", err);
+        setError(err instanceof Error ? err.message : "Could not load users.");
+      }
+      finally
+      {
+        setLoading(false);
+      }
+    }
+
+    loadUsers();
+  }, []);
+
+  if (loading)
+  {
+    return <p className="p-4 text-center">Loading users...</p>;
+  }
+
+  if (error)
+  {
+    return (
+      <p role="alert" className="p-4 text-center text-red-600">
+        {error}
+      </p>
+    );
+  }
+
+  if (users.length === 0)
+  {
+    return (
+      <p className="p-4 text-center text-zinc-500">
+        No users found in active checkouts or reservations.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-zinc-500">
+        Showing users with active checkouts or reservations.
+      </p>
+
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-zinc-100 dark:bg-zinc-800">
+            <tr>
+              <th className="p-3">Username</th>
+              <th className="p-3">Email</th>
+              <th className="p-3">Role</th>
+              <th className="p-3">Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {users.map((user) => (
+              <tr
+                key={user.id}
+                className="border-t border-zinc-200 dark:border-zinc-700"
+              >
+                <td className="p-3">{user.username}</td>
+                <td className="p-3">{user.email}</td>
+                <td className="p-3">{user.role === "ROLE_ADMIN" ? "Librarian" : "Student"}</td>
+                <td className="p-3">
+                  <span
+                    className={
+                      user.isBlocked
+                        ? "font-semibold text-red-500"
+                        : "font-semibold text-green-600"
+                    }
+                  >
+                    {user.isBlocked ? "Blocked" : "Active"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
+          Total users: {users.length}
+        </p>
+      </div>
+    </div>
+  );
+}
