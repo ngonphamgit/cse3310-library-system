@@ -157,5 +157,46 @@ public class LoanService
             .map(this::toLoanResponse)
             .toList();
     }
+
+
+
+
+
+    @Transactional(readOnly = true)
+public List<Book> getRecommendations(Authentication auth)
+{
+    //get the logged in user
+    User user = userRepo.findByUsername(auth.getName())
+        .orElseThrow(() -> new RuntimeException("User not found"));
+
+    //get all of users checkout history, including returned books
+    List<Loan> loans = loanRepo.findAllByUser(user);
+
+
+    //Get book ids for books previously checked out (for duplicate filtering)
+    List<Long> checkedOutBookIds = loans.stream()
+        .map(loan -> loan.getBook().getId())
+        .distinct()
+        .toList();
+
+
+    //collect the author names of the books they have checked out
+    List<String> authors = loans.stream()
+        .map(loan -> loan.getBook().getAuthor())
+        .filter(author -> author != null && !author.isBlank())
+        .distinct()
+        .toList();
+
+    //if there is no checkout history return nothing
+    if (authors.isEmpty())
+    {
+        return List.of();
+    }
+
+    //find books in database by the author and filter out ones already checked out
+        return bookRepo.findAllByAuthorIn(authors).stream()
+        .filter(book -> !checkedOutBookIds.contains(book.getId()))
+        .toList();
+}
 }
 

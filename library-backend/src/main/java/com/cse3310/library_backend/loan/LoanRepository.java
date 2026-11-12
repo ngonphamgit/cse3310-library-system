@@ -1,9 +1,11 @@
 package com.cse3310.library_backend.loan;
+import com.cse3310.library_backend.user.User;
 
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+
 
 public interface LoanRepository extends JpaRepository<Loan, Long>
 {
@@ -11,4 +13,5 @@ public interface LoanRepository extends JpaRepository<Loan, Long>
     Optional<Loan> findByUserIdAndBookIdAndReturnDateIsNull(Long userId, Long bookId);
     List<Loan> findAllByUserIdAndReturnDateIsNull(Long userId);
     List<Loan> findAllByReturnDateIsNull();
+    List<Loan> findAllByUser(User user);
 }
