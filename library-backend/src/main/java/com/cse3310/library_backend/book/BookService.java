@@ -144,7 +144,7 @@ public class BookService
     {
         return new BookRequestResponse(
             bookRequest.getUserId(),
-            bookRequest.getTitle(),
+            bookRequest.getIsbn(),
             bookRequest.getTitle(),
             bookRequest.getAuthor(),
             bookRequest.getCategory()
