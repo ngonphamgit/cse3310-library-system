@@ -1,17 +1,27 @@
 package com.cse3310.library_backend.book;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+
+import com.cse3310.library_backend.user.User;
+import com.cse3310.library_backend.user.UserRepository;
 
 @Service 
 public class BookService 
 {
     private final BookRepository bookRepo;
+    private final BookRequestRepository bookRequestRepo;
+    private final UserRepository userRepo;
 
-    public BookService(BookRepository bookRepo)
+    public BookService(BookRepository bookRepo, BookRequestRepository bookRequestRepo, UserRepository userRepo)
     {
         this.bookRepo = bookRepo;
+        this.bookRequestRepo = bookRequestRepo;
+        this.userRepo = userRepo;
     }
 
     public BookResponse getBookById(Long id)
@@ -93,6 +103,29 @@ public class BookService
         return toBookResponse(book);
     }
 
+    public BookRequestResponse sendBookRequest(BookRequestRequest request, Authentication auth)
+    {
+        User user = userRepo.findByUsername(auth.getName()).orElseThrow(() -> new RuntimeException("User not found"));
+
+        BookRequest bookRequest = new BookRequest(
+            user.getId(),
+            request.isbn(),
+            request.title(),
+            request.author(),
+            request.category()
+        );
+
+        bookRequestRepo.save(bookRequest);
+
+        return toBookRequestResponse(bookRequest);
+    }
+
+    public List<BookRequestResponse> getAllBookRequests()
+    {
+        List<BookRequest> bookRequests = bookRequestRepo.findAll();
+        return bookRequests.stream().map(request -> toBookRequestResponse(request)).toList();
+    }
+
     private BookResponse toBookResponse(Book book)
     {
         return new BookResponse(
@@ -104,6 +137,17 @@ public class BookService
             book.getCategory(),
             book.getQuantity(),
             book.getIsActive()
+        );
+    }
+
+    private BookRequestResponse toBookRequestResponse(BookRequest bookRequest)
+    {
+        return new BookRequestResponse(
+            bookRequest.getUserId(),
+            bookRequest.getIsbn(),
+            bookRequest.getTitle(),
+            bookRequest.getAuthor(),
+            bookRequest.getCategory()
         );
     }
 
