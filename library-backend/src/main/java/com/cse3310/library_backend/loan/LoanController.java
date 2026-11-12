@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import com.cse3310.library_backend.book.Book;
 @RestController 
 @RequestMapping("/loan")
 public class LoanController {
@@ -47,5 +48,14 @@ public class LoanController {
 public List<LoanResponse> getAllActiveLoans()
 {
     return loanService.getAllActiveLoans();
+}
+
+
+//endpoint for book recommendations
+@GetMapping("/recommendations")
+@PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+public List<Book> getRecommendations(Authentication auth) 
+{
+    return loanService.getRecommendations(auth);
 }
 }
