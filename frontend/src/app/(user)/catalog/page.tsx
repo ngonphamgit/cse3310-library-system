@@ -42,7 +42,15 @@ export default function Catalog({ searchParams }: CatalogProps) {
         >
           My Dashboard
         </Link>
+
+		  <div className="flex gap-3">
+             <Link href="/catalog/recommendations"className=
+             "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              Book Recommendations
+                 </Link>
+                </div>
 	</div>
+
 
 	  <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
         <CatalogResults searchParams={searchParams} />
