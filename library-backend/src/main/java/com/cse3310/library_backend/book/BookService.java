@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.cse3310.library_backend.user.User;
 import com.cse3310.library_backend.user.UserRepository;
@@ -120,10 +121,69 @@ public class BookService
         return toBookRequestResponse(bookRequest);
     }
 
-    public List<BookRequestResponse> getAllBookRequests()
+    //status is optional, when null every request is returned
+    public List<BookRequestResponse> getAllBookRequests(BookRequestStatus status)
     {
-        List<BookRequest> bookRequests = bookRequestRepo.findAll();
+        List<BookRequest> bookRequests = (status == null) ? bookRequestRepo.findAll() : bookRequestRepo.findAllByStatus(status);
         return bookRequests.stream().map(request -> toBookRequestResponse(request)).toList();
+    }
+
+    public BookRequestResponse updateBookRequest(Long id, BookRequestRequest request)
+    {
+        BookRequest bookRequest = getPendingBookRequest(id);
+
+        bookRequest.setIsbn(request.isbn());
+        bookRequest.setTitle(request.title());
+        bookRequest.setAuthor(request.author());
+        bookRequest.setCategory(request.category());
+
+        bookRequestRepo.save(bookRequest);
+
+        return toBookRequestResponse(bookRequest);
+    }
+
+    //adds the book to the catalog using the librarian's final values
+    //and marks the request approved
+    @Transactional
+    public BookRequestResponse approveBookRequest(Long id, AddBookRequest request)
+    {
+        BookRequest bookRequest = getPendingBookRequest(id);
+
+        BookResponse book = addBook(request);
+
+        bookRequest.setIsbn(request.isbn());
+        bookRequest.setTitle(request.title());
+        bookRequest.setAuthor(request.author());
+        bookRequest.setCategory(request.category());
+        bookRequest.setBookId(book.bookId());
+        bookRequest.setStatus(BookRequestStatus.APPROVED);
+
+        bookRequestRepo.save(bookRequest);
+
+        return toBookRequestResponse(bookRequest);
+    }
+
+    public BookRequestResponse rejectBookRequest(Long id)
+    {
+        BookRequest bookRequest = getPendingBookRequest(id);
+
+        bookRequest.setStatus(BookRequestStatus.REJECTED);
+
+        bookRequestRepo.save(bookRequest);
+
+        return toBookRequestResponse(bookRequest);
+    }
+
+    private BookRequest getPendingBookRequest(Long id)
+    {
+        BookRequest bookRequest = bookRequestRepo.findById(id).orElseThrow(() -> new RuntimeException("Book request not found"));
+
+        if (bookRequest.getStatus() != BookRequestStatus.PENDING)
+        {
+            throw new RuntimeException("Book request has already been " + bookRequest.getStatus().name().toLowerCase());
+        }
+
+        return bookRequest;
     }
 
     private BookResponse toBookResponse(Book book)
@@ -143,11 +203,15 @@ public class BookService
     private BookRequestResponse toBookRequestResponse(BookRequest bookRequest)
     {
         return new BookRequestResponse(
+            bookRequest.getId(),
             bookRequest.getUserId(),
             bookRequest.getIsbn(),
             bookRequest.getTitle(),
             bookRequest.getAuthor(),
-            bookRequest.getCategory()
+            bookRequest.getCategory(),
+            bookRequest.getStatus(),
+            bookRequest.getCreatedAt(),
+            bookRequest.getBookId()
         );
     }
 

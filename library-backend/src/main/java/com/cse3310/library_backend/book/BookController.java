@@ -95,10 +95,32 @@ public class BookController
         return bookService.sendBookRequest(request, auth);
     }
 
+    //optional ?status=PENDING|APPROVED|REJECTED, returns all requests when omitted
     @PreAuthorize("hasAnyRole('ADMIN')")
     @GetMapping ("/getRequests")
-    public List<BookRequestResponse> getAllBookRequests()
+    public List<BookRequestResponse> getAllBookRequests(@RequestParam(required = false) BookRequestStatus status)
     {
-        return bookService.getAllBookRequests();
+        return bookService.getAllBookRequests(status);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/requests/{id}")
+    public BookRequestResponse updateBookRequest(@PathVariable Long id, @RequestBody BookRequestRequest request)
+    {
+        return bookService.updateBookRequest(id, request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/requests/{id}/approve")
+    public BookRequestResponse approveBookRequest(@PathVariable Long id, @RequestBody AddBookRequest request)
+    {
+        return bookService.approveBookRequest(id, request);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/requests/{id}/reject")
+    public BookRequestResponse rejectBookRequest(@PathVariable Long id)
+    {
+        return bookService.rejectBookRequest(id);
     }
 }
