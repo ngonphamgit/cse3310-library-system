@@ -62,7 +62,8 @@ public class LoanService
 
         if (user.getIsBlocked())
         {
-            throw new RuntimeException("You are currently blocked from checking out books");
+            //423 so the frontend can tell this apart from 403 (not logged in)
+            throw new ResponseStatusException(HttpStatus.LOCKED, "You are currently blocked from checking out books");
         }
 
         //cannot have multiple loans of the same book at a time
