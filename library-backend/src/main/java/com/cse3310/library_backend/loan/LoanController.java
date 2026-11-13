@@ -42,6 +42,13 @@ public class LoanController {
        return loanService.getMyLoans(auth);
     }
 
+        @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @GetMapping("/all-my-loans")
+    public List<LoanResponse> getCurrentandPastLoans(Authentication auth)
+    {
+       return loanService.getCurrentandPastLoans(auth);
+    }
+
 
     @GetMapping("/all-active")
 @PreAuthorize("hasRole('ADMIN')")
