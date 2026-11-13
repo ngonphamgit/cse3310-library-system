@@ -1250,7 +1250,57 @@ function ManageUsers() // function to list users so librarians can block/unblock
 {
   const [users, setUsers] = useState<ListedUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(""); // error loading the list
+  const [busyUserId, setBusyUserId] = useState<number | null>(null); // user whose block/unblock is running
+  const [actionNotice, setActionNotice] = useState(""); // success message after block/unblock
+  const [actionError, setActionError] = useState(""); // error message after block/unblock
+
+  async function toggleBlock(user: ListedUser)
+  { // block an active user or unblock a blocked user
+    const action = user.isBlocked ? "unblock" : "block";
+    setBusyUserId(user.id);
+    setActionNotice("");
+    setActionError("");
+
+    try
+    {
+      const token = localStorage.getItem("token"); // get librarians login token
+
+      if (!token)
+      {
+        throw new Error("You are not logged in.");
+      }
+
+      const response = await fetch(`http://localhost:8080/users/${action}/${user.id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok)
+      {
+        throw new Error(`Could not ${action} "${user.username}" (${response.status}).`);
+      }
+
+      const updated: { userId: number; isBlocked: boolean } = await response.json();
+
+      // update only this row so the table doesnt need to reload
+      setUsers((current) =>
+        current.map((u) => (u.id === updated.userId ? { ...u, isBlocked: updated.isBlocked } : u))
+      );
+      setActionNotice(`${updated.isBlocked ? "Blocked" : "Unblocked"} "${user.username}".`);
+    }
+    catch (err)
+    {
+      console.error(`Error trying to ${action} user:`, err);
+      setActionError(err instanceof Error ? err.message : `Could not ${action} "${user.username}".`);
+    }
+    finally
+    {
+      setBusyUserId(null);
+    }
+  }
 
   useEffect(() => {
     // there is no endpoint that lists every user, so collect the users
@@ -1333,6 +1383,18 @@ function ManageUsers() // function to list users so librarians can block/unblock
         Showing users with active checkouts or reservations.
       </p>
 
+      {actionNotice && (
+        <p role="status" className="text-sm text-green-600 dark:text-green-400">
+          {actionNotice}
+        </p>
+      )}
+
+      {actionError && (
+        <p role="alert" className="text-sm text-red-600">
+          {actionError}
+        </p>
+      )}
+
       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-100 dark:bg-zinc-800">
@@ -1341,6 +1403,7 @@ function ManageUsers() // function to list users so librarians can block/unblock
               <th className="p-3">Email</th>
               <th className="p-3">Role</th>
               <th className="p-3">Status</th>
+              <th className="p-3">Action</th>
             </tr>
           </thead>
 
@@ -1363,6 +1426,25 @@ function ManageUsers() // function to list users so librarians can block/unblock
                   >
                     {user.isBlocked ? "Blocked" : "Active"}
                   </span>
+                </td>
+                <td className="p-3">
+                  {/*librarians cant block themselves or other librarians*/}
+                  {user.role !== "ROLE_ADMIN" && (
+                    <button
+                      type="button"
+                      onClick={() => toggleBlock(user)}
+                      disabled={busyUserId === user.id}
+                      className={`rounded-lg px-3 py-1 text-sm font-medium text-white disabled:opacity-50 ${
+                        user.isBlocked
+                          ? "bg-blue-600 hover:bg-blue-700"
+                          : "bg-red-600 hover:bg-red-700"
+                      }`}
+                    >
+                      {busyUserId === user.id
+                        ? user.isBlocked ? "Unblocking..." : "Blocking..."
+                        : user.isBlocked ? "Unblock" : "Block"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
