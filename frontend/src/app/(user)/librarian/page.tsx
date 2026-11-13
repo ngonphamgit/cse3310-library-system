@@ -39,7 +39,7 @@ export default function LibrarianDashboard()
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
-  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations">
+  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations" | "users">
   ("inventory");
 
   useEffect(() => {
@@ -88,7 +88,9 @@ export default function LibrarianDashboard()
   <h2>
   {dashboardView === "inventory"? "Book Inventory": dashboardView === "checkouts"
       ? "Active Checkouts"
-      : "All Reservations"}
+      : dashboardView === "reservations"
+      ? "All Reservations"
+      : "Manage Users"}
 </h2>
 
   <div className="flex flex-wrap gap-3">
@@ -109,6 +111,12 @@ className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 onClick={() => setDashboardView("reservations")}>
   View All Reservations
 </button>
+
+<button
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+onClick={() => setDashboardView("users")}>
+  Manage Users
+</button>
         </div>
       </div>
 
@@ -128,6 +136,8 @@ onClick={() => setDashboardView("reservations")}>
   <ActiveCheckouts />
 ) : dashboardView === "reservations" ? (
   <AllReservations />
+) : dashboardView === "users" ? (
+  <ManageUsers />
 ) : (
   <>
   <div className="flex items-center justify-between gap-4">
@@ -1226,3 +1236,280 @@ function AllReservations() // function to show every reservation
   );
 }
 
+
+// user as it appears inside loan and reservation responses
+type ListedUser = {
+  id: number;
+  username: string;
+  email: string;
+  role: "ROLE_STUDENT" | "ROLE_ADMIN";
+  isBlocked: boolean;
+};
+
+function ManageUsers() // function to list users so librarians can block/unblock them
+{
+  const [users, setUsers] = useState<ListedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(""); // error loading the list
+  const [busyUserId, setBusyUserId] = useState<number | null>(null); // user whose block/unblock is running
+  const [actionNotice, setActionNotice] = useState(""); // success message after block/unblock
+  const [actionError, setActionError] = useState(""); // error message after block/unblock
+  const [confirmingUser, setConfirmingUser] = useState<ListedUser | null>(null); // user shown in the block confirmation popup
+
+  async function toggleBlock(user: ListedUser)
+  { // block an active user or unblock a blocked user
+    const action = user.isBlocked ? "unblock" : "block";
+    setBusyUserId(user.id);
+    setActionNotice("");
+    setActionError("");
+
+    try
+    {
+      const token = localStorage.getItem("token"); // get librarians login token
+
+      if (!token)
+      {
+        throw new Error("You are not logged in.");
+      }
+
+      const response = await fetch(`http://localhost:8080/users/${action}/${user.id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok)
+      {
+        throw new Error(`Could not ${action} "${user.username}" (${response.status}).`);
+      }
+
+      const updated: { userId: number; isBlocked: boolean } = await response.json();
+
+      // update only this row so the table doesnt need to reload
+      setUsers((current) =>
+        current.map((u) => (u.id === updated.userId ? { ...u, isBlocked: updated.isBlocked } : u))
+      );
+      setActionNotice(`${updated.isBlocked ? "Blocked" : "Unblocked"} "${user.username}".`);
+    }
+    catch (err)
+    {
+      console.error(`Error trying to ${action} user:`, err);
+      setActionError(err instanceof Error ? err.message : `Could not ${action} "${user.username}".`);
+    }
+    finally
+    {
+      setBusyUserId(null);
+    }
+  }
+
+  useEffect(() => {
+    // there is no endpoint that lists every user, so collect the users
+    // found in active checkouts and reservations
+    async function loadUsers()
+    {
+      try
+      {
+        const token = localStorage.getItem("token");
+
+        if (!token) //check if login token is valid
+        {
+          throw new Error("You are not logged in.");
+        }
+
+        const headers = { Authorization: `Bearer ${token}` };
+        const [loanResponse, reservationResponse] = await Promise.all([
+          fetch("http://localhost:8080/loan/all-active", { headers }),
+          fetch("http://localhost:8080/reservation/all", { headers }),
+        ]);
+
+        if (!loanResponse.ok || !reservationResponse.ok)
+        { //check backend responses
+          const status = !loanResponse.ok ? loanResponse.status : reservationResponse.status;
+          throw new Error(`Could not load users (${status}).`);
+        }
+
+        const loans: { user: ListedUser }[] = await loanResponse.json();
+        const reservations: { user: ListedUser }[] = await reservationResponse.json();
+
+        // same user can show up many times, so keep one entry per user id
+        const byId = new Map<number, ListedUser>();
+        for (const item of [...loans, ...reservations])
+        {
+          byId.set(item.user.id, item.user);
+        }
+
+        setUsers([...byId.values()].sort((a, b) => a.username.localeCompare(b.username)));
+      }
+      catch (err)
+      {
+        console.error("Error loading users:", err);
+        setError(err instanceof Error ? err.message : "Could not load users.");
+      }
+      finally
+      {
+        setLoading(false);
+      }
+    }
+
+    loadUsers();
+  }, []);
+
+  if (loading)
+  {
+    return <p className="p-4 text-center">Loading users...</p>;
+  }
+
+  if (error)
+  {
+    return (
+      <p role="alert" className="p-4 text-center text-red-600">
+        {error}
+      </p>
+    );
+  }
+
+  if (users.length === 0)
+  {
+    return (
+      <p className="p-4 text-center text-zinc-500">
+        No users found in active checkouts or reservations.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-zinc-500">
+        Showing users with active checkouts or reservations.
+      </p>
+
+      {actionNotice && (
+        <p role="status" className="text-sm text-green-600 dark:text-green-400">
+          {actionNotice}
+        </p>
+      )}
+
+      {actionError && (
+        <p role="alert" className="text-sm text-red-600">
+          {actionError}
+        </p>
+      )}
+
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-zinc-100 dark:bg-zinc-800">
+            <tr>
+              <th className="p-3">Username</th>
+              <th className="p-3">Email</th>
+              <th className="p-3">Role</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {users.map((user) => (
+              <tr
+                key={user.id}
+                className="border-t border-zinc-200 dark:border-zinc-700"
+              >
+                <td className="p-3">{user.username}</td>
+                <td className="p-3">{user.email}</td>
+                <td className="p-3">{user.role === "ROLE_ADMIN" ? "Librarian" : "Student"}</td>
+                <td className="p-3">
+                  <span
+                    className={
+                      user.isBlocked
+                        ? "font-semibold text-red-500"
+                        : "font-semibold text-green-600"
+                    }
+                  >
+                    {user.isBlocked ? "Blocked" : "Active"}
+                  </span>
+                </td>
+                <td className="p-3">
+                  {/*librarians cant block themselves or other librarians*/}
+                  {user.role !== "ROLE_ADMIN" && (
+                    <button
+                      type="button"
+                      // blocking asks for confirmation first, unblocking happens right away
+                      onClick={() => (user.isBlocked ? toggleBlock(user) : setConfirmingUser(user))}
+                      disabled={busyUserId === user.id}
+                      className={`rounded-lg px-3 py-1 text-sm font-medium text-white disabled:opacity-50 ${
+                        user.isBlocked
+                          ? "bg-blue-600 hover:bg-blue-700"
+                          : "bg-red-600 hover:bg-red-700"
+                      }`}
+                    >
+                      {busyUserId === user.id
+                        ? user.isBlocked ? "Unblocking..." : "Blocking..."
+                        : user.isBlocked ? "Unblock" : "Block"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
+          Total users: {users.length}
+        </p>
+      </div>
+
+      {/*block user confirmation popup*/}
+      {confirmingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (busyUserId === null) setConfirmingUser(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="block-user-title"
+            className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="block-user-title" className="text-xl font-bold">
+              Confirm Block User
+            </h2>
+
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Are you sure you want to block &quot;{confirmingUser.username}&quot;?
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              They will not be able to check out books until they are unblocked. They can still log in and see
+              their current checkouts.
+            </p>
+
+            {/*confirm and cancel buttons*/}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                disabled={busyUserId !== null}
+                onClick={async () => {
+                  await toggleBlock(confirmingUser);
+                  setConfirmingUser(null); // success or error message shows above the table
+                }}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {busyUserId !== null ? "Blocking..." : "Yes, Block User"}
+              </button>
+              <button
+                type="button"
+                disabled={busyUserId !== null}
+                onClick={() => setConfirmingUser(null)}
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

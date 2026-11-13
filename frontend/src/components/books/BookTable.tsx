@@ -70,7 +70,11 @@ useEffect(() => {
     if (response.status === 409) 
     { //duplicate checkout error
     setActionMessage("You have already checked out this book.");
-    } 
+    }
+    else if (response.status === 423)
+    { //user was blocked by a librarian
+      setActionMessage("Your account is blocked from checking out books. Please contact a librarian.");
+    }
     else if(response.status === 403)
     {
       setActionMessage("You need to log in to check out a book.");
