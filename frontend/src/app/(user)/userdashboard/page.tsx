@@ -13,6 +13,7 @@ interface Loan
   };
   borrowDate: string;
   dueDate: string;
+  returnDate: string | null;
 }
 
 interface Reservation 
@@ -45,6 +46,8 @@ export default function Dashboard()
   const [returnMessage, setReturnMessage] = useState("");
   const [returning, setReturning] = useState(false);
 
+    //checkbox state
+  const [showPastCheckouts, setShowPastCheckouts] = useState(false);
 
   //states for book reservation
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -52,7 +55,7 @@ export default function Dashboard()
   const [reservationMessage, setReservationMessage] = useState("");
   const [processingReservationId, setProcessingReservationId] = useState<number | null>(null);
   const [reservationLoading, setReservationLoading] = useState(true);
-   const [selectedReservationCancel, setSelectedReservationCancel] = useState<Reservation | null>(null);
+  const [selectedReservationCancel, setSelectedReservationCancel] = useState<Reservation | null>(null);
 
 
 
@@ -60,6 +63,8 @@ export default function Dashboard()
     async function fetchLoans() {
       try 
       {
+        setLoading(true);
+        setError("");
         const token = localStorage.getItem("token"); //get users login token
 
         if (!token) 
@@ -68,7 +73,11 @@ export default function Dashboard()
           return;
         }
 
-        const response = await fetch("http://localhost:8080/loan/my-loans",
+          //fetch either all loans or current loans based on the state of the checkbox
+         const endpoint = showPastCheckouts ? "http://localhost:8080/loan/all-my-loans"
+        : "http://localhost:8080/loan/my-loans";
+
+        const response = await fetch(endpoint,
           { //fetch users loans
             headers: 
             {
@@ -84,7 +93,21 @@ export default function Dashboard()
         }
 
         const data: Loan[] = await response.json();  //get loan data
-        setLoans(data);
+        
+        //sort the loans so that the returned books appear at the top of the list
+        const sortedLoans = data.sort((a, b) => 
+        {
+        if (a.returnDate === null && b.returnDate !== null)
+        {
+          return -1;
+        } 
+        if (a.returnDate !== null && b.returnDate === null) 
+        {
+        return 1;
+        }
+        return 0;
+        });
+        setLoans(sortedLoans);
       } 
       catch (err) //catch backend error and display it to user
       {
@@ -98,7 +121,7 @@ export default function Dashboard()
     }
 
     fetchLoans();
-  }, []);
+  }, [showPastCheckouts]);
 
 
   async function returnBook()
@@ -290,6 +313,10 @@ const activeReservations = reservations.filter((reservation) =>
         return;
       }
 
+
+      const loanEndpoint = showPastCheckouts ? "http://localhost:8080/loan/all-my-loans"
+  : "http://localhost:8080/loan/my-loans";
+
       const response = await fetch("http://localhost:8080/reservation/fulfill", //get backend fulfill endpoint
         {
           method: "POST",
@@ -316,7 +343,7 @@ const activeReservations = reservations.filter((reservation) =>
 
     // Refresh the frontend tables to reflect new checkout
     //get all loans
-const loanResponse = await fetch("http://localhost:8080/loan/my-loans",
+const loanResponse = await fetch(loanEndpoint,
   {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -388,6 +415,20 @@ setReservations(updatedReservations);
           </Link>
         </header>
 
+     {/*checkbox to toggle past checkouts*/}
+      <div className="flex items-center gap-3">
+       <input
+        id="showPastCheckouts"
+        type="checkbox"
+        checked={showPastCheckouts}
+        onChange={(e) => setShowPastCheckouts(e.target.checked)}
+        className="h-4 w-4 accent-blue-600"/>
+
+        <label htmlFor="showPastCheckouts" className="text-sm font-medium">
+         Show Past Checkouts
+        </label>
+      </div>
+
 
           {/*book loading msg and no books msg*/}
         {loading ? (<p className="text-zinc-500">Loading borrowed books...</p>) 
@@ -429,6 +470,7 @@ setReservations(updatedReservations);
 
                     {/*return book button*/}
                     <td className="p-4">
+                       {loan.returnDate === null && (
                       <button
                         type="button"
                         onClick={() => {
@@ -438,8 +480,15 @@ setReservations(updatedReservations);
                         className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
                         Return Book
                       </button>
-                    </td>
-                  </tr>))}
+                       )}
+
+                       {loan.returnDate !== null && (
+                     <span className="text-zinc-500">
+                     Returned
+                   </span>
+                   )}
+                 </td>
+               </tr>))}
 
               </tbody>
             </table>

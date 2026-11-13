@@ -150,6 +150,30 @@ public class LoanService
             .toList();
     }
 
+
+
+
+
+
+    //get all loans for the logged in user, including returned books
+     @Transactional(readOnly = true)
+    public List<LoanResponse> getCurrentandPastLoans(Authentication auth)
+    {
+        //get the logged in user
+         User user = userRepo.findByUsername(auth.getName())
+        .orElseThrow(() -> new RuntimeException("User not found"));
+
+         //get all of users checkout history, including returned books
+         List<Loan> loans = loanRepo.findAllByUser(user);
+
+
+        return loans.stream()
+            .map(this::toLoanResponse)
+            .toList();
+    }
+
+
+
     @Transactional(readOnly = true)
     public List<LoanResponse> getAllActiveLoans() 
     {
