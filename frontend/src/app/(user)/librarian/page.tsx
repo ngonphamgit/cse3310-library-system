@@ -1254,6 +1254,7 @@ function ManageUsers() // function to list users so librarians can block/unblock
   const [busyUserId, setBusyUserId] = useState<number | null>(null); // user whose block/unblock is running
   const [actionNotice, setActionNotice] = useState(""); // success message after block/unblock
   const [actionError, setActionError] = useState(""); // error message after block/unblock
+  const [confirmingUser, setConfirmingUser] = useState<ListedUser | null>(null); // user shown in the block confirmation popup
 
   async function toggleBlock(user: ListedUser)
   { // block an active user or unblock a blocked user
@@ -1432,7 +1433,8 @@ function ManageUsers() // function to list users so librarians can block/unblock
                   {user.role !== "ROLE_ADMIN" && (
                     <button
                       type="button"
-                      onClick={() => toggleBlock(user)}
+                      // blocking asks for confirmation first, unblocking happens right away
+                      onClick={() => (user.isBlocked ? toggleBlock(user) : setConfirmingUser(user))}
                       disabled={busyUserId === user.id}
                       className={`rounded-lg px-3 py-1 text-sm font-medium text-white disabled:opacity-50 ${
                         user.isBlocked
@@ -1455,6 +1457,59 @@ function ManageUsers() // function to list users so librarians can block/unblock
           Total users: {users.length}
         </p>
       </div>
+
+      {/*block user confirmation popup*/}
+      {confirmingUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => {
+            if (busyUserId === null) setConfirmingUser(null);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="block-user-title"
+            className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="block-user-title" className="text-xl font-bold">
+              Confirm Block User
+            </h2>
+
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Are you sure you want to block &quot;{confirmingUser.username}&quot;?
+            </p>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              They will not be able to check out books until they are unblocked. They can still log in and see
+              their current checkouts.
+            </p>
+
+            {/*confirm and cancel buttons*/}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                disabled={busyUserId !== null}
+                onClick={async () => {
+                  await toggleBlock(confirmingUser);
+                  setConfirmingUser(null); // success or error message shows above the table
+                }}
+                className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {busyUserId !== null ? "Blocking..." : "Yes, Block User"}
+              </button>
+              <button
+                type="button"
+                disabled={busyUserId !== null}
+                onClick={() => setConfirmingUser(null)}
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
