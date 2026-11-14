@@ -13,12 +13,14 @@ export function BookTable({ books = [] }: BookTableProps)
 {
 const [selectedBook, setSelectedBook] = useState<Book | null>(null);
 const [actionMessage, setActionMessage] = useState("");
-const [displayBooks, setDisplayBooks] = useState<Book[]>(books);
+//filter out inactive books from the database
+const [displayBooks, setDisplayBooks] = useState<Book[]>(books.filter((book) => book.isActive));
 const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
 const [showReservationConfirmation, setShowReservationConfirmation] = useState(false);
 
 useEffect(() => {
-  setDisplayBooks(books);
+  //filter out the inactive books
+  setDisplayBooks(books.filter((book) => book.isActive));
 }, [books]);
 
   function openBook(book: Book) //open books details into popup
