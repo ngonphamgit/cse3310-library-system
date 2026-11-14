@@ -58,6 +58,14 @@ public List<LoanResponse> getAllActiveLoans()
 }
 
 
+    @GetMapping("/all")
+@PreAuthorize("hasRole('ADMIN')")
+public List<LoanResponse> getAllLoans() 
+{
+    return loanService.getAllLoans();
+}
+
+
 //endpoint for book recommendations
 @GetMapping("/recommendations")
 @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")

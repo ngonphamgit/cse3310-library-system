@@ -86,8 +86,9 @@ export default function LibrarianDashboard()
         <section className="space-y-4">
           <div className="flex items-center justify-between gap-4">
   <h2>
-  {dashboardView === "inventory"? "Book Inventory": dashboardView === "checkouts"
-      ? "Active Checkouts"
+  {dashboardView === "inventory"? "Book Inventory"
+      : dashboardView === "checkouts"
+      ? "Active Checkouts"      
       : dashboardView === "reservations"
       ? "All Reservations"
       : dashboardView === "requests"
@@ -105,7 +106,7 @@ className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 <button 
 className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 onClick={() => setDashboardView("checkouts")}>
-  View Active Checkouts
+  View Checkouts
 </button>
 
 <button 
@@ -959,11 +960,13 @@ function RemoveBookConfirm({ book, onClose, onRemoved }: { book: Book; onClose: 
   };
   borrowDate: string;
   dueDate: string;
+  returnDate: string | null;
 };
 
 function ActiveCheckouts() //function to look for active checkouts
 {
   const [loans, setLoans] = useState<ActiveLoan[]>([]); //state to hold loans
+  const [showPastCheckouts, setShowPastCheckouts] = useState(false); //state for checkbox to activate past checkouts
   const [loading, setLoading] = useState(true); //state for loading
   const [error, setError] = useState(""); //state for error status
 
@@ -979,8 +982,11 @@ function ActiveCheckouts() //function to look for active checkouts
           throw new Error("You are not logged in.");
         }
 
-        const response = await fetch( //fetch the active loans from the backend
-          "http://localhost:8080/loan/all-active",
+         const endpoint = showPastCheckouts ? "http://localhost:8080/loan/all"
+        : "http://localhost:8080/loan/all-active";
+
+        const response = await fetch( //fetch either the active loans or all loans from the backend
+          endpoint,
           {
             method: "GET",
             headers: {
@@ -992,20 +998,27 @@ function ActiveCheckouts() //function to look for active checkouts
         if (!response.ok)  //check backend response
           {
           throw new Error(
-            `Could not load active checkouts (${response.status}).`
+            `Could not load checkouts (${response.status}).`
           );
         }
 
         const data: ActiveLoan[] = await response.json();
-        setLoans(data);
+
+        //sort data so that active checkouts are on top
+        const sortedLoans = data.sort((a, b) => {
+        if (a.returnDate === null && b.returnDate !== null) return -1;
+        if (a.returnDate !== null && b.returnDate === null) return 1;
+        return 0;
+      });
+
+      setLoans(sortedLoans);
       } 
       catch (err)  //catch any errors from backend
       {
-        console.error("Error loading active checkouts:", err);
+        console.error("Error loading checkouts:", err);
         setError(
-          err instanceof Error
-            ? err.message
-            : "Could not load active checkouts."
+          err instanceof Error ? err.message
+            : "Could not load checkouts."
         );
       } 
       finally 
@@ -1014,13 +1027,13 @@ function ActiveCheckouts() //function to look for active checkouts
       }
     }
   loadLoans();
-  }, []);
+  }, [showPastCheckouts]); //runs when checkbox is interacted with
 
   if (loading)  //check if the data is loading
     {
     return (
       <p className="p-4 text-center">
-        Loading active checkouts...
+        Loading checkouts...
       </p>
     );
   }
@@ -1044,6 +1057,15 @@ function ActiveCheckouts() //function to look for active checkouts
   }
 // create ui
   return (
+    <div className="space-y-4">
+     {/* checkbox above the table */}
+     <label className="flex items-center gap-2 text-sm font-medium">
+      <input type="checkbox"
+        checked={showPastCheckouts}
+        onChange={(e) => setShowPastCheckouts(e.target.checked)}
+        className="h-4 w-4 accent-blue-600"/>
+      Show Past Checkouts
+    </label>
     <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
       <table className="w-full text-left text-sm">
         <thead className="bg-zinc-100 dark:bg-zinc-800">
@@ -1053,15 +1075,15 @@ function ActiveCheckouts() //function to look for active checkouts
             <th className="p-3">Book Title</th>
             <th className="p-3">Borrow Date</th>
             <th className="p-3">Due Date</th>
-            <th className="p-3">Status</th>
+            <th className="p-3">Checkout Status</th>  
+            <th className="p-3">Return Status</th>      
           </tr>
         </thead>
       {/*  map loans and due date */}
         <tbody>
-          {loans.map((loan) => {
-            const overdue =
-              new Date(loan.dueDate + "T00:00:00").getTime() <
-              new Date().setHours(0, 0, 0, 0);
+          {loans.map((loan) => { //check if the loan is overdue by comparing the due date to the current date
+            const overdue = new Date(loan.dueDate + "T00:00:00").getTime() < 
+            new Date().setHours(0, 0, 0, 0);
 
 
               {/* create table entries */}
@@ -1074,16 +1096,25 @@ function ActiveCheckouts() //function to look for active checkouts
                 <td className="p-3">{loan.book.title}</td>
                 <td className="p-3">{loan.borrowDate}</td>
                 <td className="p-3">{loan.dueDate}</td>
-                <td className="p-3">
-                  <span
-                    className={
-                      overdue
-                        ? "font-semibold text-red-500"
-                        : "font-semibold text-green-600"
-                    }>
+                <td className="p-3"> <span className={ overdue
+                        ? "font-semibold text-red-500" //if overdue show red if not show green
+                        : "font-semibold text-green-600"}>
                     {overdue ? "Overdue" : "Active"}
-                  </span>
-                </td>
+                    </span>
+                    </td>
+                    {/*display if book is returned or not returndate=null means not returned*/}
+                    <td className="p-3">
+                     {loan.returnDate === null ? (
+                     <span className="font-semibold text-green-600">
+                      Checked Out
+                      </span>
+                       ) : (
+                     <span className="font-semibold text-zinc-500">
+                      Returned
+                     </span>
+                      )}
+                    </td>
+            
               </tr>
             );
           })}
@@ -1095,6 +1126,7 @@ function ActiveCheckouts() //function to look for active checkouts
         Total active checkouts: {loans.length}
       </p>
     </div>
+  </div>
   );
 }
 
