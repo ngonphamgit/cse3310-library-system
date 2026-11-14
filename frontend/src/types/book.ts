@@ -5,5 +5,6 @@ export interface Book {
     author: string,
     description: string,
     category: string,
-    quantity: number
+    quantity: number,
+    isActive: boolean
 }

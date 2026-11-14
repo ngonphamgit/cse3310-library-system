@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react"; //allows book table to be interacted with
+import { useEffect, useState } from "react"; //allows book table to be interacted with
 import { Table } from "@heroui/react";
 import type { Book } from "@/types/book";
 
-interface BookTableProps {
-    books: Book[];
+interface BookTableProps 
+{
+  books: Book[];
 }
 
-export function BookTable({ books = [] }: BookTableProps) {
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [actionMessage, setActionMessage] = useState("");
+export function BookTable({ books = [] }: BookTableProps) 
+{
+const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+const [actionMessage, setActionMessage] = useState("");
+const [displayBooks, setDisplayBooks] = useState<Book[]>(books);
+const [showCheckoutConfirmation, setShowCheckoutConfirmation] = useState(false);
+const [showReservationConfirmation, setShowReservationConfirmation] = useState(false);
+
+useEffect(() => {
+  setDisplayBooks(books);
+}, [books]);
 
   function openBook(book: Book) //open books details into popup
   {
@@ -24,12 +33,152 @@ export function BookTable({ books = [] }: BookTableProps) {
     setActionMessage("");
   }
 
+
+
+  async function checkoutBook() //run when checkout button pressed
+  {
+  if (!selectedBook) //check if selected book is valid
+    {
+    return;
+    } 
+
+  setActionMessage("Checking out book..."); //message to user telling them something is happening
+
+  try {
+    const token = localStorage.getItem("token"); //get the login token for user
+
+    if (!token)  //if the token is invalid, the user isnt logged in so stop checkout
+    {
+      setActionMessage("Please log in before checking out a book.");
+      return;
+    }
+
+    const response = await fetch("http://localhost:8080/loan/checkout", { //fetch checkout endpoint
+      method: "POST",
+      headers: 
+      {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, //authorize user
+      },
+      body: JSON.stringify({ bookId: selectedBook.bookId,}),
+    });
+
+    if (!response.ok) //check backend response is valid
+      {
+      const errorText = await response.text();
+
+    if (response.status === 409) 
+    { //duplicate checkout error
+    setActionMessage("You have already checked out this book.");
+    }
+    else if (response.status === 423)
+    { //user was blocked by a librarian
+      setActionMessage("Your account is blocked from checking out books. Please contact a librarian.");
+    }
+    else if(response.status === 403)
+    {
+      setActionMessage("You need to log in to check out a book.");
+    }
+    else
+    { //otherwise other error
+    setActionMessage(`Checkout failed (${response.status}). Please try again.`);
+    }
+      return;
+    }
+
+    const loan = await response.json();
+
+    //update the quantity to reflect checkout
+    const updatedBook = { ...selectedBook, quantity: Math.max(0, selectedBook.quantity - 1),};
+
+    //update the book table to reflect the quantity
+    setDisplayBooks((currentBooks) => currentBooks.map((book) =>
+    book.bookId === updatedBook.bookId ? updatedBook : book));
+
+    //update popup with new quantity
+    setSelectedBook(updatedBook);
+
+    //otherwise checkout succeeded, notify user that it succeeded
+    setActionMessage(`Successfully checked out "${loan.book.title}". Due date: ${loan.dueDate}.`);
+
+  } 
+  catch (error) 
+  {
+    console.error("Checkout error:", error);
+    setActionMessage("Could not connect to the server. Please try again."); //backend isnt connected
+  }
+}
+
+
+
+async function reserveBook() //run when reserve button pressed
+  {
+  if (!selectedBook) //check if selected book is valid
+    {
+    return;
+    } 
+
+  setActionMessage("Reserving book..."); //message to user telling them something is happening
+
+  try {
+    const token = localStorage.getItem("token"); //get the login token for user
+
+    if (!token)  //if the token is invalid, the user isnt logged in so stop checkout
+    {
+      setActionMessage("Please log in before reserving a book.");
+      return;
+    }
+
+    const response = await fetch("http://localhost:8080/reservation/add", { //fetch reserve endpoint
+      method: "POST",
+      headers: 
+      {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, //authorize user
+      },
+      body: JSON.stringify({ bookId: selectedBook.bookId,}),
+    });
+
+    if (!response.ok) //check backend response is valid
+      {
+      const errorText = await response.text();
+
+    if (response.status === 500) 
+    { //duplicate reservation error
+    setActionMessage("You have already reserved or checked out this book.");
+    } 
+    else if(response.status === 403)
+    {
+      setActionMessage("You need to log in to reserve a book.");
+    }
+    else
+    { //otherwise other error
+    setActionMessage(`Reservation failed (${response.status}). Please try again.`);
+    }
+      return;
+    }
+
+    const loan = await response.json();
+
+
+    //otherwise reservation succeeded, notify user that it succeeded
+    setActionMessage(`Successfully reserved "${selectedBook.title}".`);
+
+  } 
+  catch (error) 
+  {
+    console.error("Reservation error:", error);
+    setActionMessage("Could not connect to the server. Please try again."); //backend isnt connected
+  }
+}
+
   return (
     <>
     <Table>
       <Table.ScrollContainer>
         <Table.Content aria-label="books">
           <Table.Header>
+              {/*table layout*/}
             <Table.Column isRowHeader>Title</Table.Column>
             <Table.Column>Author</Table.Column>
             <Table.Column>ISBN</Table.Column>
@@ -38,7 +187,7 @@ export function BookTable({ books = [] }: BookTableProps) {
           </Table.Header>
           <Table.Body>
             
-            {books.map((book) => ( //maps the rows to the books in database
+            {displayBooks.map((book) => ( //maps the rows to the books in database
               <Table.Row key={book.bookId} id={String(book.bookId)} >     
                 <Table.Cell>
                    <button 
@@ -61,6 +210,7 @@ export function BookTable({ books = [] }: BookTableProps) {
     </Table>
 
 
+  {/*book details popup (from clicking title)*/}
   {
  selectedBook && (
         <div
@@ -73,7 +223,7 @@ export function BookTable({ books = [] }: BookTableProps) {
             aria-labelledby="book-details-title"
             className="w-full max-w-lg space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
             onClick={(e) => e.stopPropagation()} >
-
+                {/*display book info (title, author, description)*/}
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2
@@ -85,7 +235,7 @@ export function BookTable({ books = [] }: BookTableProps) {
                   by {selectedBook.author}
                 </p>
               </div>
-
+      {/*close book popup*/}
               <button
                 type="button"
                 onClick={closeBook}
@@ -94,7 +244,7 @@ export function BookTable({ books = [] }: BookTableProps) {
                 &times;
               </button>
             </div>
-
+            {/*display more book info*/}
             <div className="space-y-3 border-y border-zinc-200 py-4 dark:border-zinc-700">
               <p>
                 <span className="font-semibold">ISBN:</span>{" "}
@@ -115,39 +265,134 @@ export function BookTable({ books = [] }: BookTableProps) {
                 </p>
               </div>
             </div>
-
+              {/*action message for state of checkout/reservation*/}
             {actionMessage && (
               <p role="status" className="text-sm text-blue-600 dark:text-blue-400">
                 {actionMessage}
               </p>
             )}
 
+
+                {/*checkout button (just brings up confirmation page)*/}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                   disabled={selectedBook.quantity === 0}
-                onClick={() =>
-                  setActionMessage("checkout not yet implemented")
-                }
-                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-20"
-              >
+                onClick={() => setShowCheckoutConfirmation(true)}
+                className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-20">
                 Checkout
               </button>
 
+              {/*button to reserve book (just brings up confirmation screen)*/}
               <button
                 type="button"
                 disabled={selectedBook.quantity > 0}
-                onClick={() =>
-                  setActionMessage("reservation not yet implemented")
-                }
-                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20"
-              >
+               onClick={() => setShowReservationConfirmation(true)}
+                className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 disabled:opacity-20">
                 Reserve
               </button>
             </div>
           </div>
         </div>
       )}
+
+  {/*checkout confirmation screen*/}
+      {showCheckoutConfirmation && selectedBook && (
+  <div
+    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+    onClick={() => setShowCheckoutConfirmation(false)}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+      onClick={(e) => e.stopPropagation()}>
+      <h2 className="text-xl font-bold">
+        Confirm Checkout
+      </h2>
+
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        Are you sure you want to check out "{selectedBook.title}"?
+         </p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            {/*display due date to user, 2 weeks from time of checkout*/}
+         Due Date:{" "}
+          <span className="font-semibold text-zinc-900 dark:text-white">
+            {new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString()}
+             </span>  
+      </p>
+
+  {/*confirm checkout button*/}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setShowCheckoutConfirmation(false);
+            checkoutBook();
+          }}
+          className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800">
+          Yes, Checkout
+        </button>
+
+  {/*cancel checkout button*/}
+        <button
+          type="button"
+          onClick={() => setShowCheckoutConfirmation(false)}
+          className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
+  {/*reservation confirmation screen*/}
+      {showReservationConfirmation && selectedBook && (
+  <div
+    className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+    onClick={() => setShowReservationConfirmation(false)}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="w-full max-w-md space-y-5 rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+      onClick={(e) => e.stopPropagation()}>
+      <h2 className="text-xl font-bold">
+        Confirm Reservation
+      </h2>
+
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        Are you sure you want to reserve this book? "{selectedBook.title}"?
+         </p>
+  
+
+  {/*confirm reservation button*/}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setShowReservationConfirmation(false);
+            reserveBook();
+          }}
+          className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800">
+          Yes, Reserve
+        </button>
+
+  {/*cancel reservation button*/}
+        <button
+          type="button"
+          onClick={() => setShowReservationConfirmation(false)}
+          className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         </>
   );
+
+
+  
 }

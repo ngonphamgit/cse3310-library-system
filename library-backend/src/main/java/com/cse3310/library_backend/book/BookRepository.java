@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import java.util.List;
 
 public interface BookRepository extends JpaRepository<Book, Long>
 {
@@ -68,4 +69,6 @@ public interface BookRepository extends JpaRepository<Book, Long>
     Page<Book> findAllByIsbn(String query, Pageable pageable);
 
     boolean existsByIsbn(String isbn);
+
+    List<Book> findAllByAuthorIn(List<String> authors);
 }

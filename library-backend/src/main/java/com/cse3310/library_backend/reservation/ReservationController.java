@@ -1,0 +1,61 @@
+package com.cse3310.library_backend.reservation;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+
+import java.util.List;
+
+@RestController 
+@RequestMapping("/reservation")
+public class ReservationController {
+    private final ReservationService reservationService;
+
+    public ReservationController(ReservationService reservationService)
+    {
+        this.reservationService = reservationService;
+    }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @PostMapping("/add")
+    public ReservationResponse makeReservation(@RequestBody MakeReservationRequest request, Authentication auth)
+    {
+        return reservationService.makeReservation(request, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @PostMapping ("/fulfill")
+    public FulfillReservationResponse fulfillReservation(@RequestBody FulfillReservationRequest request, Authentication auth)
+    {
+        return reservationService.fulfillReservation(request, auth);
+    }
+
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @PostMapping("/cancel")
+    public ReservationResponse cancelReservation(@RequestBody CancelReservationRequest request, Authentication auth)
+    {
+        return reservationService.cancelReservation(request, auth);
+    }
+
+
+    //endpoint to get users reservations
+    @PreAuthorize("hasAnyRole('STUDENT', 'ADMIN')")
+    @GetMapping("/my-reservations")
+    public List<ReservationResponse> getMyReservations(Authentication auth)
+    {
+        return reservationService.getMyReservations(auth);
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/all")
+    public List<ReservationResponse> getAllReservations() 
+    {
+    return reservationService.getAllReservations();
+    }
+}

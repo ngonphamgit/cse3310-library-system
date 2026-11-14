@@ -3,6 +3,7 @@ import { BookTable } from "@/components/books/BookTable";
 import { BookSearch } from "@/components/books/BookSearch";
 import { BookPagination } from "@/components/books/BookPagination";
 import { getBooks, searchBooks, type SearchBy } from "@/lib/api/books";
+import Link from "next/link";
 
 type CatalogSearchParams = Promise<{ query?: string; by?: SearchBy; page?: string }>;
 
@@ -28,14 +29,32 @@ async function CatalogResults({ searchParams }: CatalogProps) {
 export default function Catalog({ searchParams }: CatalogProps) {
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-12">
-    	<div className="flex p-4">
+    	<div className="flex items-center justify-between gap-4 p-4">
+        <div className="min-w-0 flex-1">
         <Suspense>
           <BookSearch />
         </Suspense>
-      </div>
-      <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
+		 </div>
+
+	<Link
+          href="/userdashboard"
+          className="shrink-0 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          My Dashboard
+        </Link>
+
+		  <div className="flex gap-3">
+             <Link href="/catalog/recommendations"className=
+             "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+              Book Recommendations
+                 </Link>
+                </div>
+	</div>
+
+
+	  <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
         <CatalogResults searchParams={searchParams} />
       </Suspense>
     </div>
-  )
+  );
 }

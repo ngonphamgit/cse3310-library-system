@@ -34,6 +34,9 @@ public class User {
     @Column(nullable = false)
     private Role role;
 
+    @Column(nullable = false)
+    private boolean isBlocked = false;
+
     protected User() {}
 
     public User(String username, String email, String password, Role role)
@@ -49,4 +52,7 @@ public class User {
     public String getEmail() {return this.email;}
     public String getPassword() {return this.password;}
     public Role getRole() {return this.role;}
+    public boolean getIsBlocked() {return this.isBlocked;}
+
+    public void setIsBlocked(boolean isBlocked) {this.isBlocked = isBlocked;}
 }
