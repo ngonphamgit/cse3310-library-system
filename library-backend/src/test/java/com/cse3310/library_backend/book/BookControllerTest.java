@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.cse3310.library_backend.security.CustomUserDetailsService;
 import com.cse3310.library_backend.security.JwtService;
+import com.cse3310.library_backend.security.SecurityConfig;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -33,7 +35,8 @@ import java.util.List;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @WebMvcTest(BookController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@Import(SecurityConfig.class)
+@AutoConfigureMockMvc(addFilters = true)
 public class BookControllerTest {
     
     @Autowired 
@@ -41,10 +44,10 @@ public class BookControllerTest {
 
     @MockitoBean
     private BookService bookService;
-    //@MockitoBean
-    //private JwtService jwtService;
-    //@MockitoBean
-    //private CustomUserDetailsService cuds;
+    @MockitoBean
+    private JwtService jwtService;
+    @MockitoBean
+    private CustomUserDetailsService cuds;
     
     private List<BookResponse> books = List.of(
         new BookResponse(1L, "9781583429990", "red 1", "a", "d1", "c1", 1, true),
@@ -403,9 +406,10 @@ public class BookControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "STUDENT")
     void addBooksByAdminReturns403() throws Exception
     {
-        mockMvc.perform(post("/books/addBook")
+        mockMvc.perform(post("/book/admin/addBook")
             .contentType(MediaType.APPLICATION_JSON)
             .content(
                 """
@@ -419,7 +423,27 @@ public class BookControllerTest {
                 }
                 """
             ))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.title").value("Ngon Book"));
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void addBooksByAdminReturns200() throws Exception
+    {
+        mockMvc.perform(post("/book/admin/addBook")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                """
+                {
+                    "isbn" : "9781583429999",
+                    "title" : "Ngon Book",
+                    "author": "Ngon Pham",
+                    "description" : "some description",
+                    "category" : "category 10",
+                    "quantity" : 10
+                }
+                """
+            ))
+            .andExpect(status().isOk());
     }
 }
