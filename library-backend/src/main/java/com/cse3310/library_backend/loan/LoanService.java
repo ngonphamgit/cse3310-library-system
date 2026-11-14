@@ -173,7 +173,7 @@ public class LoanService
     }
 
 
-
+    //get all active loans not returned
     @Transactional(readOnly = true)
     public List<LoanResponse> getAllActiveLoans() 
     {
@@ -183,6 +183,15 @@ public class LoanService
             .toList();
     }
 
+//get all active loans including returned
+    @Transactional(readOnly = true)
+public List<LoanResponse> getAllLoans()
+{
+    return loanRepo.findAll()
+        .stream()
+        .map(this::toLoanResponse)
+        .toList();
+}
 
 
 
