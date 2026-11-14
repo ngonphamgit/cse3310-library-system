@@ -29,28 +29,34 @@ async function CatalogResults({ searchParams }: CatalogProps) {
 export default function Catalog({ searchParams }: CatalogProps) {
   return (
     <div className="mx-auto w-full max-w-4xl px-6 py-12">
-    	<div className="flex items-center justify-between gap-4 p-4">
-        <div className="min-w-0 flex-1">
-        <Suspense>
-          <BookSearch />
-        </Suspense>
-		 </div>
-
-	<Link
+      <div className="flex flex-wrap justify-end gap-3 px-4 pt-4">
+        <Link
           href="/userdashboard"
-          className="shrink-0 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
         >
           My Dashboard
         </Link>
 
-		  <div className="flex gap-3">
-             <Link href="/catalog/recommendations"className=
-             "rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
-              Book Recommendations
-                 </Link>
-                </div>
-	</div>
+        <Link
+          href="/catalog/request"
+          className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+        >
+          Request a Book
+        </Link>
 
+        <Link
+          href="/catalog/recommendations"
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Book Recommendations
+        </Link>
+      </div>
+
+      <div className="p-4">
+        <Suspense>
+          <BookSearch />
+        </Suspense>
+      </div>
 
 	  <Suspense fallback={<p className="p-4 text-center">Loading books...</p>}>
         <CatalogResults searchParams={searchParams} />

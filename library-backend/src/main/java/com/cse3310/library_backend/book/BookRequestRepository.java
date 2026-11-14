@@ -7,4 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface BookRequestRepository extends JpaRepository<BookRequest, Long>
 {
     List<BookRequest> findAll();
+    List<BookRequest> findAllByStatus(BookRequestStatus status);
 }

@@ -39,7 +39,7 @@ export default function LibrarianDashboard()
   // "loading" on the server since localStorage only exists in the browser
   const access = useSyncExternalStore(subscribe, getAccess, () => "loading" as Access);
 
-  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations" | "users">
+  const [dashboardView, setDashboardView] = useState<"inventory" | "checkouts" | "reservations" | "users" | "requests">
   ("inventory");
 
   useEffect(() => {
@@ -90,6 +90,8 @@ export default function LibrarianDashboard()
       ? "Active Checkouts"
       : dashboardView === "reservations"
       ? "All Reservations"
+      : dashboardView === "requests"
+      ? "Book Requests"
       : "Manage Users"}
 </h2>
 
@@ -117,6 +119,12 @@ className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
 onClick={() => setDashboardView("users")}>
   Manage Users
 </button>
+
+<button
+className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+onClick={() => setDashboardView("requests")}>
+  View Book Requests
+</button>
         </div>
       </div>
 
@@ -138,6 +146,8 @@ onClick={() => setDashboardView("users")}>
   <AllReservations />
 ) : dashboardView === "users" ? (
   <ManageUsers />
+) : dashboardView === "requests" ? (
+  <BookRequests />
 ) : (
   <>
   <div className="flex items-center justify-between gap-4">
@@ -1510,6 +1520,509 @@ function ManageUsers() // function to list users so librarians can block/unblock
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// book request sent by a student, as returned by the backend
+type BookRequest = {
+  id: number;
+  userId: number;
+  isbn: string | null;
+  title: string | null;
+  author: string | null;
+  category: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string | null;
+  bookId: number | null; // catalog book made when the request was approved
+};
+
+type RequestFilter = "PENDING" | "APPROVED" | "REJECTED" | "ALL";
+
+type RequestsResult =
+  | { key: string; data: BookRequest[] }
+  | { key: string; error: string };
+
+function BookRequests() // function to list student book requests so librarians can review them
+{
+  const [filter, setFilter] = useState<RequestFilter>("PENDING"); // which requests to show
+  const [version, setVersion] = useState(0); // bump to reload the list
+  const [result, setResult] = useState<RequestsResult | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<BookRequest | null>(null); // request shown in the review popup
+  const [actionNotice, setActionNotice] = useState(""); // success message after approve/reject/save
+
+  const url = filter === "ALL"
+    ? "http://localhost:8080/book/getRequests"
+    : `http://localhost:8080/book/getRequests?status=${filter}`;
+  const key = `${url}#${version}`; // changes when the filter changes or the list needs reloading
+
+  useEffect(() => {
+    let cancelled = false; // ignore old responses if the filter changes before they arrive
+    const token = localStorage.getItem("token"); // get librarians login token
+
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => {
+        if (!response.ok)
+        { // check backend response is valid
+          throw new Error(`Could not load book requests (${response.status}).`);
+        }
+        return response.json();
+      })
+      .then((data: BookRequest[]) => {
+        // newest requests first
+        const sorted = [...data].sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+        if (!cancelled) setResult({ key, data: sorted });
+      })
+      .catch((err) => { // backend not running or bad response
+        console.error("Error loading book requests:", err);
+        if (!cancelled) setResult({ key, error: err instanceof Error ? err.message : "Could not load book requests." });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [url, key]);
+
+  // called by the review popup after a successful approve, reject or save
+  function finishAction(message: string)
+  {
+    setSelectedRequest(null);
+    setActionNotice(message);
+    setVersion((v) => v + 1); // reload so the request moves to its new status
+  }
+
+  return (
+    <div className="space-y-2">
+      {/*status filter*/}
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <span>Show</span>
+        <select
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value as RequestFilter);
+            setActionNotice("");
+          }}
+          className="rounded-lg border border-zinc-300 bg-transparent p-2 dark:border-zinc-600 dark:bg-zinc-900"
+        >
+          <option value="PENDING">Pending</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="ALL">All</option>
+        </select>
+      </label>
+
+      {actionNotice && (
+        <p role="status" className="text-sm text-green-600 dark:text-green-400">
+          {actionNotice}
+        </p>
+      )}
+
+      {!result || result.key !== key ? (
+        <p className="p-4 text-center">Loading book requests...</p>
+      ) : "error" in result ? (
+        <p role="alert" className="p-4 text-center text-red-600">
+          {result.error}
+        </p>
+      ) : result.data.length === 0 ? (
+        <p className="p-4 text-center text-zinc-500">
+          {filter === "ALL" ? "No book requests yet." : `No ${filter.toLowerCase()} book requests.`}
+        </p>
+      ) : (
+        <>
+          {filter === "PENDING" && (
+            <p className="text-sm text-zinc-500">
+              Click a request to review it, make changes, and add it to the catalog.
+            </p>
+          )}
+
+          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-100 dark:bg-zinc-800">
+                <tr>
+                  <th className="p-3">Title</th>
+                  <th className="p-3">Author</th>
+                  <th className="p-3">ISBN</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3">Requested</th>
+                  <th className="p-3">Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {result.data.map((request) => {
+                  const pending = request.status === "PENDING";
+                  return (
+                    <tr
+                      key={request.id}
+                      // only pending requests can be reviewed
+                      onClick={pending ? () => setSelectedRequest(request) : undefined}
+                      className={`border-t border-zinc-200 dark:border-zinc-700 ${
+                        pending ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800" : ""
+                      }`}
+                    >
+                      <td className="p-3 font-medium">
+                        {pending ? (
+                          // button so the row can also be opened with the keyboard
+                          <button type="button" className="text-left text-blue-600 hover:underline dark:text-blue-400">
+                            {request.title || "(no title)"}
+                          </button>
+                        ) : (
+                          request.title || "(no title)"
+                        )}
+                      </td>
+                      <td className="p-3">{request.author || "—"}</td>
+                      <td className="p-3">{request.isbn || "—"}</td>
+                      <td className="p-3">{request.category || "—"}</td>
+                      <td className="p-3">
+                        {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="p-3">
+                        <span
+                          className={
+                            request.status === "APPROVED"
+                              ? "font-semibold text-green-600"
+                              : request.status === "REJECTED"
+                              ? "font-semibold text-red-500"
+                              : "font-semibold text-amber-600"
+                          }
+                        >
+                          {request.status === "APPROVED"
+                            ? `Approved${request.bookId !== null ? ` (Book ID ${request.bookId})` : ""}`
+                            : request.status === "REJECTED"
+                            ? "Rejected"
+                            : "Pending"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            <p className="border-t border-zinc-200 p-3 text-sm text-zinc-500 dark:border-zinc-700">
+              Total requests: {result.data.length}
+            </p>
+          </div>
+        </>
+      )}
+
+      {/*review request popup*/}
+      {selectedRequest && (
+        <ReviewBookRequest
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onDone={finishAction}
+        />
+      )}
+    </div>
+  );
+}
+
+// popup for reviewing one book request: fix its info, then add it to the catalog, save it, or reject it
+function ReviewBookRequest({ request, onClose, onDone }: { request: BookRequest; onClose: () => void; onDone: (message: string) => void })
+{
+  // description and quantity arent part of a request, the librarian fills them in here
+  const [form, setForm] = useState({
+    isbn: request.isbn ?? "",
+    title: request.title ?? "",
+    author: request.author ?? "",
+    category: request.category ?? "",
+    quantity: "1",
+    description: "",
+  });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState<"" | "approve" | "save" | "reject">(""); // which action is running
+  const [confirmingReject, setConfirmingReject] = useState(false); // reject asks for confirmation first
+
+  // updates one field of the form
+  function updateField(field: keyof typeof form, value: string)
+  {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  // sends one action to the backend and returns the updated request, or null after showing an error
+  async function send(path: string, method: "POST" | "PUT", body?: object): Promise<BookRequest | null>
+  {
+    const token = localStorage.getItem("token"); // get librarians login token
+
+    const response = await fetch(`http://localhost:8080/book/requests/${request.id}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok)
+    { // check backend response is valid
+      if (response.status === 401 || response.status === 403)
+      {
+        setError("You are not allowed to manage book requests. Try logging out and back in.");
+      }
+      else if (path === "/approve")
+      { // backend rejects duplicate isbns, or the request was already handled
+        setError(`Could not add book (${response.status}). A book with this ISBN or title may already exist, or this request was already handled.`);
+      }
+      else
+      {
+        setError(`Could not update request (${response.status}). It may have already been handled.`);
+      }
+      return null;
+    }
+
+    return response.json();
+  }
+
+  // runs one action while showing its busy state and catching connection errors
+  async function run(action: "approve" | "save" | "reject", work: () => Promise<void>)
+  {
+    if (busy)
+    {
+      return;
+    }
+    setError("");
+    setBusy(action);
+    try
+    {
+      await work();
+    }
+    catch (err)
+    { // backend not running
+      console.error(`Book request ${action} error:`, err);
+      setError("Could not connect to the server. Please try again.");
+    }
+    finally
+    {
+      setBusy("");
+    }
+  }
+
+  // add the book to the catalog using the values in the form
+  function approve(e: React.SyntheticEvent<HTMLFormElement>)
+  {
+    e.preventDefault();
+    setConfirmingReject(false);
+
+    // every field is required by the backend to make a catalog book
+    const book = {
+      isbn: form.isbn.trim(),
+      title: form.title.trim(),
+      author: form.author.trim(),
+      category: form.category.trim(),
+      description: form.description.trim(),
+      quantity: Number(form.quantity),
+    };
+
+    if (!book.isbn || !book.title || !book.author || !book.category || !book.description)
+    {
+      setError("Please fill in every field before adding the book to the catalog.");
+      return;
+    }
+
+    if (!/^[0-9-]+X?$/i.test(book.isbn))
+    { // isbns are digits and dashes (isbn-10 can end in X)
+      setError("ISBN can only contain numbers and dashes.");
+      return;
+    }
+
+    if (!Number.isInteger(book.quantity) || book.quantity < 0)
+    {
+      setError("Quantity must be a whole number of 0 or more.");
+      return;
+    }
+
+    run("approve", async () => {
+      const updated = await send("/approve", "POST", book);
+      if (updated)
+      {
+        onDone(`Added "${book.title}" to the catalog (Book ID ${updated.bookId}).`);
+      }
+    });
+  }
+
+  // save fixes to the request without adding it to the catalog yet
+  function save()
+  {
+    setConfirmingReject(false);
+
+    if (!form.title.trim())
+    {
+      setError("A request needs at least a title.");
+      return;
+    }
+
+    run("save", async () => {
+      const updated = await send("", "PUT", {
+        isbn: form.isbn.trim() || null,
+        title: form.title.trim(),
+        author: form.author.trim() || null,
+        category: form.category.trim() || null,
+      });
+      if (updated)
+      {
+        onDone(`Saved changes to the request for "${updated.title}".`);
+      }
+    });
+  }
+
+  // mark the request as rejected
+  function reject()
+  {
+    run("reject", async () => {
+      const updated = await send("/reject", "POST");
+      if (updated)
+      {
+        onDone(`Rejected the request for "${updated.title || "(no title)"}".`);
+      }
+    });
+  }
+
+  const inputClass = "w-full rounded-lg border border-zinc-300 bg-transparent p-2 dark:border-zinc-600";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-request-title"
+        className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 text-zinc-900 shadow-xl dark:bg-zinc-900 dark:text-white"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <form onSubmit={approve} className="space-y-4">
+          <div>
+            <h2 id="review-request-title" className="text-2xl font-bold">Review Book Request</h2>
+            <p className="text-sm text-zinc-500">
+              Requested by user ID {request.userId}
+              {request.createdAt ? ` on ${new Date(request.createdAt).toLocaleDateString()}` : ""}.
+              Fix any details, fill in the rest, and add it to the catalog.
+            </p>
+          </div>
+
+          {/*book info fields, filled in from the request*/}
+          <label className="block space-y-1 text-sm font-medium">
+            <span>ISBN</span>
+            <input className={inputClass} value={form.isbn} onChange={(e) => updateField("isbn", e.target.value)} />
+          </label>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Title</span>
+            <input className={inputClass} value={form.title} onChange={(e) => updateField("title", e.target.value)} />
+          </label>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Author</span>
+            <input className={inputClass} value={form.author} onChange={(e) => updateField("author", e.target.value)} />
+          </label>
+          <div className="flex gap-3">
+            <label className="block flex-1 space-y-1 text-sm font-medium">
+              <span>Category</span>
+              <input className={inputClass} value={form.category} onChange={(e) => updateField("category", e.target.value)} />
+            </label>
+            <label className="block w-28 space-y-1 text-sm font-medium">
+              <span>Quantity</span>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                className={inputClass}
+                value={form.quantity}
+                onChange={(e) => updateField("quantity", e.target.value)}
+              />
+            </label>
+          </div>
+          <label className="block space-y-1 text-sm font-medium">
+            <span>Description</span>
+            <textarea
+              rows={4}
+              className={inputClass}
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+            />
+          </label>
+          <p className="text-xs text-zinc-500">
+            Quantity and description are only used when adding to the catalog. Save Changes keeps the other fields on the request.
+          </p>
+
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
+
+          {confirmingReject ? (
+            // reject confirmation
+            <div className="space-y-3 rounded-lg border border-red-300 p-3 dark:border-red-800">
+              <p className="text-sm">Are you sure you want to reject this request?</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={busy !== ""}
+                  onClick={reject}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {busy === "reject" ? "Rejecting..." : "Yes, Reject"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy !== ""}
+                  onClick={() => setConfirmingReject(false)}
+                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-2 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                >
+                  Keep Request
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/*add to catalog and save buttons*/}
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={busy !== ""}
+                  className="flex-1 rounded-lg bg-blue-700 px-4 py-3 font-medium text-white hover:bg-blue-800 disabled:opacity-50"
+                >
+                  {busy === "approve" ? "Adding..." : "Add to Catalog"}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy !== ""}
+                  onClick={save}
+                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                >
+                  {busy === "save" ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+
+              {/*reject and cancel buttons*/}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={busy !== ""}
+                  onClick={() => {
+                    setError("");
+                    setConfirmingReject(true);
+                  }}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  Reject Request
+                </button>
+                <button
+                  type="button"
+                  disabled={busy !== ""}
+                  onClick={onClose}
+                  className="flex-1 rounded-lg border border-zinc-300 px-4 py-3 font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </form>
+      </div>
     </div>
   );
 }
