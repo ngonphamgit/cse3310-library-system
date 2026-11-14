@@ -575,20 +575,20 @@ function AddBookForm({ onClose, onAdded }: { onClose: () => void; onAdded: (book
           {/*book info fields*/}
           <label className="block space-y-1 text-sm font-medium">
             <span>ISBN</span>
-            <input className={inputClass} value={form.isbn} onChange={(e) => updateField("isbn", e.target.value)} />
+            <input className={inputClass} maxLength={13} value={form.isbn} onChange={(e) => updateField("isbn", e.target.value)} />
           </label>
           <label className="block space-y-1 text-sm font-medium">
             <span>Title</span>
-            <input className={inputClass} value={form.title} onChange={(e) => updateField("title", e.target.value)} />
+            <input className={inputClass} maxLength={50} value={form.title} onChange={(e) => updateField("title", e.target.value)} />
           </label>
           <label className="block space-y-1 text-sm font-medium">
             <span>Author</span>
-            <input className={inputClass} value={form.author} onChange={(e) => updateField("author", e.target.value)} />
+            <input className={inputClass} maxLength={30} value={form.author} onChange={(e) => updateField("author", e.target.value)} />
           </label>
           <div className="flex gap-3">
             <label className="block flex-1 space-y-1 text-sm font-medium">
               <span>Category</span>
-              <input className={inputClass} value={form.category} onChange={(e) => updateField("category", e.target.value)} />
+              <input className={inputClass} maxLength={20} value={form.category} onChange={(e) => updateField("category", e.target.value)} />
             </label>
             <label className="block w-28 space-y-1 text-sm font-medium">
               <span>Quantity</span>
@@ -607,6 +607,7 @@ function AddBookForm({ onClose, onAdded }: { onClose: () => void; onAdded: (book
             <textarea
               rows={4}
               className={inputClass}
+              maxLength={1000}
               value={form.description}
               onChange={(e) => updateField("description", e.target.value)}
             />

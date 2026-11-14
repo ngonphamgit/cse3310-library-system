@@ -124,6 +124,7 @@ export default function RequestBook()
               <label htmlFor="title" className="text-sm font-medium">Title *</label>
               <input
                 id="title"
+                maxLength={50}
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -136,6 +137,7 @@ export default function RequestBook()
               <label htmlFor="author" className="text-sm font-medium">Author *</label>
               <input
                 id="author"
+                maxLength={30}
                 type="text"
                 value={author}
                 onChange={(e) => setAuthor(e.target.value)}
@@ -148,6 +150,7 @@ export default function RequestBook()
               <label htmlFor="isbn" className="text-sm font-medium">ISBN (optional)</label>
               <input
                 id="isbn"
+                maxLength={13}
                 type="text"
                 value={isbn}
                 onChange={(e) => setIsbn(e.target.value)}
@@ -159,6 +162,7 @@ export default function RequestBook()
               <label htmlFor="category" className="text-sm font-medium">Category (optional)</label>
               <input
                 id="category"
+                maxLength={20}
                 type="text"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
