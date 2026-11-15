@@ -27,8 +27,15 @@ initial backend commit - steps to set up the backend for your machine:
 6. set the password environment variable to the password you created during postgresql installation
     - $env:DB_PASSWORD="yourpassword"
         - you will have to do this command every time you start a new terminal session
-    - $env:JWT_SECRET ="my-local-development-secret-key-change-this-123456789"
-        - this will need to be set to something for logins to work, just set it to this currently for testing, will need a more secure one in future
+    - setting up JWT secret
+        - run these commands in powershell:
+            - $bytes = New-Object byte[] 32
+            - $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+            - $rng.GetBytes($bytes)
+            - $rng.Dispose()
+            - $secret = [Convert]::ToBase64String($bytes)
+            - $secret
+            - $env:JWT_SECRET = $secret
 7. change into the library-backend folder
     - cd library-backend
 8. run the backend (on windows powershell):
